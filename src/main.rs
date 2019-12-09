@@ -1,16 +1,16 @@
 use std::env;
-use std::io;
-use std::fs::File;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 mod ledger;
 
 fn main() {
     // get the $LEDGER_FILE env var
+    let ledger_file: String = get_ledger_file().unwrap();
     let mvelopes_file: String = get_mvelopes_file().unwrap();
-    println!("{}", mvelopes_file);
 
-    // parse mvelopes.journal file
+    ledger::Ledger::from_file(ledger_file);
+
+    // parse ledger
     // parse hledger output with assets and mvelopes
 }
 
@@ -22,7 +22,7 @@ fn get_mvelopes_file() -> Result<String, String> {
             println!("$MVELOPES_FILE probably doesn't exist ('{}')", e);
 
             // or attempt to get sibling file to $LEDGER_FILE
-            match env::var("LEDGER_FILE") {
+            match get_ledger_file() {
                 Ok(f) => {
                     let parent_dir = get_parent_dir(f);
                     let mvelopes_sibling_path = Path::new(&parent_dir).join("mvelopes.journal");
@@ -52,4 +52,8 @@ fn get_parent_dir(file_path: String) -> String {
     let path = parent_path.to_str().unwrap();
 
     String::from(path)
+}
+
+fn get_ledger_file() -> Result<String, env::VarError> {
+    env::var("LEDGER_FILE")
 }
