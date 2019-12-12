@@ -95,9 +95,11 @@ More specifically:
 > hledger uses it for balance assertions, and mvelopes uses
 > it for cost assertions.
 
-Only at least one space is required after `<account>`.
-`<payee>` is not required, but if provided in square
-brackets as above, can be queried in mvelopes's output.
+At least two spaces are required after `<account>` for
+mvelopes to know the difference between an `<account>` and
+an `<amount>`.  `<payee>` is not required, but if provided
+in square brackets as above, can be queried in mvelopes's
+output.
 
 #### Comments
 
@@ -212,15 +214,24 @@ Of course, things can get a little more complicated:
 
 ```
 2019/08/02 * Groceries with cash back
-    assets:checking               -70
-    assets:cash                    20
-    expenses:groceries             50
-    envelope assets:checking food -50
+    assets:checking                 -70
+    assets:cash                      20
+    expenses:groceries               50
+    envelope assets:checking food   -50
 ```
 
 Since this transaction includes two postings from assets,
 mvelopes can't infer which account from which to use an
-envelope. 
+envelope. We tell mvelopes which envelope to use (and how
+much money) with this syntax:
+
+```
+envelope <account> <envelope_name>  <amount>
+```
+
+Once again, `<amount>` needs at least two spaces before it
+so that mvelopes can parse it. Also, if `<envelope_name>`
+contains spaces, it should be wrapped in double quotes.
 
 ## Fun facts
 
