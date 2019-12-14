@@ -108,7 +108,7 @@ or a double-slash (`//`), which is preferred and will be
 used when using `mvelopes format`:
 
 ```
-2019/08/02 ! Restaurant [Fancy's]
+2019/08/02 ? Restaurant [Fancy's]
     assets:checking     -140        // Might've ordered too much
     expenses:dining      140
 ```
