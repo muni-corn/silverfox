@@ -67,6 +67,14 @@ account income:salary
 account income:gifts
 ```
 
+Accounts in mvelopes can't include spaces in their names.
+Instead, underscores should be used:
+
+```
+account expenses:food:dining_out
+account liabilities:credit_card
+```
+
 ## Journal format
 
 If you've used ledger-cli or hledger, mvelopes uses a
@@ -101,7 +109,7 @@ an `<amount>`.  `<payee>` is not required, but if provided
 in square brackets as above, can be queried in mvelopes's
 output.
 
-#### Comments
+### Comments
 
 Comments in mvelopes are done with either semicolons (`;`)
 or a double-slash (`//`), which is preferred and will be
@@ -147,6 +155,38 @@ Or, you can define the price per unit:
 Information about using envelopes on transactions and moving
 money to them manually is outlined below.
 
+### Balance assertions
+
+```
+2019/08/02 * Account closure
+    assets:checking -100 ! 0
+    assets:new_acct  100
+```
+
+Balance assertions are used to make sure the amount in an
+account is what you expect it to be. The exclamation mark is
+used to set balance assertions. With only one exclamation
+mark, the assertion operates on a per-currency basis:
+
+```
+2019/08/02 * Crypto account closure
+    assets:crypto_wallet    -0.01 BTC ! 0
+    assets:crypto_wallet    -1.00 ETH ! 0
+    assets:crypto_wallet    -32.0 BAT ! 0
+    assets:new_wallet        0.01 BTC
+    assets:new_wallet        1.00 ETH
+    assets:new_wallet        32.0 BAT
+```
+
+With two exclamation marks, the assertion operates on the
+total balance of the account:
+
+```
+2019/08/02 * Savings account closure
+    assets:savings     -1000 !! 0
+    assets:new_acct     1000
+```
+
 ## Envelopes
 
 ### Configuration
@@ -164,7 +204,7 @@ account assets:checking
         amount 100                                  // for $100
         for expenses:home:electricity               // automatically moves money when expenses:home:electricity is used
         funding conservative                        // use conservative funding
-        
+
     expense food due every 1st                      // due the 1st of every month
         amount 300                                  // for $300
         for expenses:groceries                      // automatically moves money when expenses:groceries is used
@@ -182,7 +222,7 @@ account assets:savings
         amount 1000                                 // you get the gist!
         funding conservative
 
-    goal "new boat" by 2025/06/28
+    goal new_boat by 2025/06/28
         amount 35000
         funding conservative
 ```
@@ -195,8 +235,8 @@ due`. That makes no sense. mvelopes will throw an error.
 A couple of other points to note:
 
 - Expenses and goals can co-exist under the same account
-- If your expense or goal name includes whitespace, it must
-  be wrapped in quotes.
+- Like account names, any spaces in envelope names need to
+  be replaced with underscores.
 
 ### Manual envelope movements
 
