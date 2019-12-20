@@ -94,6 +94,9 @@ More specifically:
     <account> <amount>
 ```
 
+`<payee>` is not required, but if provided in square
+brackets as above, can be queried by mvelopes.
+
 > Note: While mvelopes has formatting extremely similar to
 > hledger or ledger-cli, an mvelopes file is not necessarily
 > compatible with an hledger or ledger-cli file. You'll
@@ -103,12 +106,6 @@ More specifically:
 > hledger uses it for balance assertions, and mvelopes uses
 > it for cost assertions.
 
-At least two spaces are required after `<account>` for
-mvelopes to know the difference between an `<account>` and
-an `<amount>`.  `<payee>` is not required, but if provided
-in square brackets as above, can be queried in mvelopes's
-output.
-
 ### Comments
 
 Comments in mvelopes are done with either semicolons (`;`)
@@ -117,7 +114,7 @@ used when using `mvelopes format`:
 
 ```
 2019/08/02 ? Restaurant [Fancy's]
-    assets:checking     -140        // Might've ordered too much
+    assets:checking     -140        // Not worth the price, by the way
     expenses:dining      140
 ```
 
@@ -136,7 +133,7 @@ your transaction:
 Note that in the above transaction, mvelopes will
 automatically balance and infer that the total cost of
 0.012345 BTC (Bitcoin) was \$100. You can define the total
-cost of the BTC manually as well:
+cost of BTC manually as well:
 
 ```
 2019/08/02 * Bought crypto
@@ -152,8 +149,16 @@ Or, you can define the price per unit:
     assets:crypto:btc       0.012345 BTC @ $8100.45
 ```
 
-Information about using envelopes on transactions and moving
-money to them manually is outlined below.
+If you mix amounts without a currency symbol and amounts
+with your preferred currency symbol, you can tell mvelopes
+which currency symbol you use:
+
+```
+currency $
+```
+
+mvelopes will combine amounts with blank symbols and with
+the specified symbol.
 
 ### Balance assertions
 
@@ -196,23 +201,46 @@ mvelopes. Envelopes are created under asset accounts:
 
 ```
 account assets:checking
-    expense rent due every 15th                     // due the 15th of every month
-        amount 1000                                 // for $1000
-        funding aggressive                          // use aggressive funding
+    expense rent due every 15th                 // due the 15th of every month
+        amount 1000                             // for $1000
+        for expenses:home:rent                  // automatically moves money when expenses:home:rent is used
+        funding aggressive                      // use aggressive funding
 
-    expense electricity due every other 15th        // due the 15th of every other month
-        amount 100                                  // for $100
-        for expenses:home:electricity               // automatically moves money when expenses:home:electricity is used
-        funding conservative                        // use conservative funding
+    expense food due every 1st                  // due the 1st of every month
+        amount 300                              // for $300
+        for expenses:groceries                  // automatically moves money when expenses:groceries is used
+        for expenses:dining                     // and expenses:dining
 
-    expense food due every 1st                      // due the 1st of every month
-        amount 300                                  // for $300
-        for expenses:groceries                      // automatically moves money when expenses:groceries is used
-        for expenses:dining                         // and expenses:dining
+    expense some_weekly_thing due every Monday  // due weekly on Monday (could also write `Mon`)
+        amount 100                              // for $300
+                                                // accounts aren't required
 ```
 
 > Note: the `funding` option is optional. If omitted, mvelopes
 > won't move money automatically. 
+
+If you want to delay the starting date for an envelope, you
+can do so with `starting`:
+
+```
+account assets:checking
+    expense streaming due every 20th starting 2019/10/20    // due the 20th of every month, only after the free trial tho
+        amount 12                                           // for $12
+        for expenses:entertainment                          // automatically moves money when expenses:entertainment is used
+```
+
+If you opt for the frequency of an envelope to be `every
+other` something, `starting` is required (so mvelopes can
+know which weeks and months to use):
+
+```
+account assets:checking
+    expense electricity due every other 15th starting 2020/01/20    // due the 15th of every other month, but not until the new electricity bill starts
+        amount 100                                                  // for $100
+        for expenses:home:electricity                               // automatically moves money when expenses:home:electricity is used
+        funding conservative                                        // use conservative funding
+
+```
 
 We can also do envelopes for goals:
 
@@ -235,8 +263,8 @@ due`. That makes no sense. mvelopes will throw an error.
 A couple of other points to note:
 
 - Expenses and goals can co-exist under the same account
-- Like account names, any spaces in envelope names need to
-  be replaced with underscores.
+- Like account names, envelope names can't have spaces; use
+  underscores instead
 
 ### Manual envelope movements
 
@@ -260,18 +288,14 @@ Of course, things can get a little more complicated:
     envelope assets:checking food   -50
 ```
 
-Since this transaction includes two postings from assets,
-mvelopes can't infer which account from which to use an
-envelope. We tell mvelopes which envelope to use (and how
-much money) with this syntax:
+If `assets:checking` and `assets:cash` both have `food`
+envelopes, mvelopes can't infer which account from which to
+use an envelope. We tell mvelopes which envelope to use (and
+how much money) with this syntax:
 
 ```
-envelope <account> <envelope_name>  <amount>
+envelope <account> <envelope_name> <amount>
 ```
-
-Once again, `<amount>` needs at least two spaces before it
-so that mvelopes can parse it. Also, if `<envelope_name>`
-contains spaces, it should be wrapped in double quotes.
 
 ## Fun facts
 
