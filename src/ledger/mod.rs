@@ -1,41 +1,42 @@
-use std::fmt;
-use std::collections::HashMap;
-use std::io::prelude::*;
-use std::fs::File;
-use std::path::Path;
-use entry::Entry;
 use crate::ledger::errors::*;
+use std::collections::HashMap;
+use std::fmt;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
+pub mod amount;
 pub mod entry;
-pub mod envelope;
-pub mod account;
-pub mod errors;
-pub mod utils;
+
+pub type Account = account::Account;
+pub type Entry = entry::Entry;
 
 pub struct Ledger {
     entries: Vec<Entry>,
     date_format: String, // default = "%Y/%m/%d"
-    accounts: HashMap<String, account::Account>,
+    accounts: HashMap<String, Account>,
     default_currency: String,
-    decimal_symbol: char
+    decimal_symbol: char,
 }
 
 impl Ledger {
+    /// Returns a blank ledger, with default values for `date_format` and `decimal_symbol`
     fn blank() -> Self {
         Ledger {
             date_format: String::from("%Y/%m/%d"),
             entries: Vec::<Entry>::new(),
             accounts: HashMap::new(),
             default_currency: String::new(),
-            decimal_symbol: '.'
+            decimal_symbol: '.',
         }
     }
 
+    /// Given a `file_path`, returns an entire file's contents as a String
     fn get_string_from_file(file_path: &Path) -> String {
         let path_display = file_path.display();
         let mut file = match File::open(file_path) {
             Ok(f) => f,
-            Err(e) => panic!("couldn't open {}: {}", path_display, e)
+            Err(e) => panic!("couldn't open {}: {}", path_display, e),
         };
 
         let mut s = String::new();
@@ -46,6 +47,7 @@ impl Ledger {
         }
     }
 
+    /// Returns a ledger parsed from a file at the `file_path`
     pub fn from_file(file_path: &Path) -> Result<Self, MvelopesError> {
         let mut ledger = Self::blank();
 
@@ -56,6 +58,7 @@ impl Ledger {
         }
     }
 
+    /// Adds to the ledger from the contents parsed from the file at the `file_path`
     fn add_from_file(&mut self, file_path: &Path) -> Result<(), MvelopesError> {
         let s = Self::get_string_from_file(file_path);
 
@@ -66,6 +69,7 @@ impl Ledger {
         }
     }
 
+    /// Adds to the ledger from the contents parsed from the string
     fn add_from_str(&mut self, s: &str, parent_path: &Path) -> Result<(), MvelopesError> {
         // init a chunk
         let mut chunk = String::new();
@@ -83,7 +87,7 @@ impl Ledger {
                     chunk.push_str(line);
                 } else {
                     if let Err(e) = self.parse_chunk(&chunk, parent_path) {
-                        return Err(e)
+                        return Err(e);
                     }
                     chunk = String::from(line);
                 }
@@ -98,13 +102,14 @@ impl Ledger {
         }
     }
 
+    /// Parses a single chunk and adds its contents to the ledger. Returns an MvelopesError is
+    /// there was an issue in validation or in parsing.
+    ///
+    /// What is a "chunk"? A "chunk" starts at a line that starts with a non-whitespace character
+    /// and ends before the next line that starts with a non-whitespace character.
     fn parse_chunk(&mut self, chunk: &str, parent_path: &Path) -> Result<(), MvelopesError> {
-        // a "chunk" starts at a line that starts with a non-whitespace
-        // character and ends before the next line that starts with a
-        // non-whitespace character
-        
         if chunk.is_empty() {
-            return Ok(()) // blank chunks are fine; they don't modify anything, so no error needed
+            return Ok(()); // blank chunks are fine; they don't modify anything, so no error needed
         }
 
         let mut tokens = chunk.split_whitespace();
@@ -116,15 +121,16 @@ impl Ledger {
             Some("currency") => self.set_currency(value),
             Some("date_format") => self.set_date_format(value),
             Some("include") => self.include(value, parent_path),
-            _ => self.parse_entry(chunk)
+            _ => self.parse_entry(chunk),
         }
     }
 
+    /// Parses a currency symbol
     fn set_currency(&mut self, cur: Option<&str>) -> Result<(), MvelopesError> {
         match cur {
-            None => Err(MvelopesError::from(ParseError { 
+            None => Err(MvelopesError::from(ParseError {
                 message: Some("no currency provided, but currency keyword was found".to_string()),
-                context: None
+                context: None,
             })),
             Some(c) => {
                 self.default_currency = c.into();
@@ -135,9 +141,11 @@ impl Ledger {
 
     fn set_date_format(&mut self, date_format: Option<&str>) -> Result<(), MvelopesError> {
         match date_format {
-            None => Err(MvelopesError::from(ParseError { 
+            None => Err(MvelopesError::from(ParseError {
                 context: None,
-                message: Some("no date format provided, but date_format keyword was found".to_string())
+                message: Some(
+                    "no date format provided, but date_format keyword was found".to_string(),
+                ),
             })),
             Some(d) => {
                 self.date_format = d.into();
@@ -148,10 +156,10 @@ impl Ledger {
 
     fn include(&mut self, file: Option<&str>, parent_path: &Path) -> Result<(), MvelopesError> {
         match file {
-            None => Err(MvelopesError::from(ParseError::new().set_message("no file provided to an `include` clause"))),
-            Some(f) => {
-                self.add_from_file(&parent_path.join(f))
-            }
+            None => Err(MvelopesError::from(
+                ParseError::new().set_message("no file provided to an `include` clause"),
+            )),
+            Some(f) => self.add_from_file(&parent_path.join(f)),
         }
     }
 
@@ -160,18 +168,18 @@ impl Ledger {
             Ok(entry) => {
                 self.entries.push(entry);
                 Ok(())
-            },
-            Err(e) => Err(e)
+            }
+            Err(e) => Err(e),
         }
     }
 
     fn parse_account(&mut self, chunk: &str) -> Result<(), MvelopesError> {
-        match account::Account::parse(chunk, self.decimal_symbol, &self.date_format) {
+        match Account::parse(chunk, self.decimal_symbol, &self.date_format) {
             Ok(a) => {
                 self.accounts.insert(a.get_name().to_string(), a);
                 Ok(())
-            },
-            Err(e) => Err(MvelopesError::from(e))
+            }
+            Err(e) => Err(MvelopesError::from(e)),
         }
     }
 }
@@ -184,88 +192,5 @@ impl fmt::Display for Ledger {
         }
 
         Ok(())
-    }
-}
-
-pub struct Amount {
-    mag: f64,
-    symbol: Option<String>
-}
-
-impl Amount {
-    fn parse(s: &str, decimal_symbol: char) -> Result<Self, ParseError> {
-        let split = s.split_whitespace().collect::<Vec<&str>>();
-
-        let clump = match split.len() {
-            2 => split.join(" "),
-            1 => split[0].to_string(),
-            _ => return Err(ParseError {
-                context: Some(s.to_string()),
-                message: Some("this amount isn't valid".to_string())
-            })
-        };
-
-        // parse amount and currency in the same chunk
-        // parse magnitude
-        let raw_mag = clump.chars().filter(|&c| Self::is_mag_char(c, decimal_symbol)).collect::<String>();
-        let mag = match raw_mag.parse::<f64>() {
-            Ok(m) => m,
-            Err(_) => return Err(ParseError {
-                message: Some(format!("couldn't parse magnitude of amount; {}", raw_mag)),
-                context: Some(s.to_string())
-            })
-        };
-
-        // parse symbol
-        let raw_sym = clump.chars().filter(|&c| Self::is_symbol_char(c, decimal_symbol)).collect::<String>();
-        let symbol = match raw_sym.trim().len() {
-            0 => None,
-            _ => Some(raw_sym.trim().to_string())
-        };
-
-        Ok(Self {
-            mag,
-            symbol
-        })
-    }
-
-    pub fn zero() -> Self {
-        Amount {
-            mag: 0.0,
-            symbol: None
-        }
-    }
-
-    // returns true if the char is a digit or decimal symbol
-    fn is_mag_char(c: char, decimal_symbol: char) -> bool {
-        c.is_digit(10) || c == decimal_symbol || c == '-'
-    }
-
-    fn is_symbol_char(c: char, decimal_symbol: char) -> bool {
-        !Self::is_mag_char(c, decimal_symbol) && c != '.' && c != ','
-    }
-
-    pub fn display(&self) -> String {
-        let mag = if self.mag < 0.0 {
-            format!("{}", self.mag)
-        } else {
-            format!(" {}", self.mag)
-        };
-
-        if let Some(s) = &self.symbol {
-            if s.len() <= 2 {
-                format!("{}{}", s, mag)
-            } else {
-                format!("{} {}", mag, s)
-            }
-        } else {
-            format!("{}", mag)
-        }
-    }
-}
-
-impl fmt::Display for Amount {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.display())
     }
 }
