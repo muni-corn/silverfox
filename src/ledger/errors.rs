@@ -1,25 +1,46 @@
 use std::fmt;
 
-// might use this later for auto-fixable errors
-// #[derive(Debug)]
-// pub trait AutoFixableError<T> {
-//     type Result<T> = Result<T, std::error::Error>;
-//
-//     fn is_fixable() -> bool;
-//     fn fix(T) -> Self::Result<T>;
-//
-//     fn prompt_user()
-// }
+// TODO auto-fixable errors
 
+
+/// MvelopesError is an enum for all possible custom errors that mvelopes can throw. It is a
+/// wrapper of sorts.
+pub enum MvelopesError {
+    Parse(ParseError),
+    Validation(ValidationError)
+}
+
+impl From<ParseError> for MvelopesError {
+    fn from(err: ParseError) -> Self {
+        Self::Parse(err)
+    }
+}
+
+impl From<ValidationError> for MvelopesError {
+    fn from(err: ValidationError) -> Self {
+        Self::Validation(err)
+    }
+}
+
+impl fmt::Display for MvelopesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MvelopesError::Validation(v) => v.fmt(f),
+            MvelopesError::Parse(p) => p.fmt(f)
+        }
+    }
+}
+
+/// ParseError is thrown during the parsing phase of ledger construction. If mvelopes can't parse something, this error type will be thrown.
 #[derive(Debug)]
-pub struct ChunkParseError {
-    pub chunk: Option<String>,
+pub struct ParseError {
+    pub context: Option<String>,
     pub message: Option<String>,
 }
 
-impl ChunkParseError {
+impl ParseError {
     pub fn new() -> Self {
-        ChunkParseError { chunk: None, message: None }
+        ParseError { context: None, message: None }
     }
 
     pub fn set_message(mut self, message: &str) -> Self {
@@ -28,28 +49,72 @@ impl ChunkParseError {
         self
     }
 
-    pub fn set_chunk(mut self, chunk: &str) -> Self {
-        self.chunk = Some(chunk.to_string());
+    pub fn set_context(mut self, context: &str) -> Self {
+        self.context = Some(context.to_string());
 
         self
     }
 }
 
-impl fmt::Display for ChunkParseError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.message.is_some() && self.chunk.is_some() {
+        if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "mveloeps couldn't understand the following:\n\n\t{}\n\nmore information: {}",
-                self.chunk.as_ref().unwrap(),
+                "mvelopes couldn't understand the following:\n\n{}\n\nmore information: {}",
+                self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "couldn't parse a chunk: {}", a)
-        } else if let Some(b) = &self.chunk {
-            write!(f, "couldn't parse this chunk:\n{}", b)
+            write!(f, "mvelopes ran across an issue in your journal: {}", a)
+        } else if let Some(b) = &self.context {
+            write!(f, "mvelopes couldn't understand this:\n\n{}\n\nbut no further information was provided", b)
         } else {
-            write!(f, "couldn't parse a chunk")
+            write!(f, "something couldn't be parsed, but no information was provided")
+        }
+    }
+}
+
+/// ValidationError is thrown during the validation phase of ledger construction. If mvelopes finds something that's invalid and can't continue with construction, this error type will be thrown.
+#[derive(Debug)]
+pub struct ValidationError {
+    pub context: Option<String>,
+    pub message: Option<String>,
+}
+
+impl ValidationError {
+    pub fn new() -> Self {
+        Self { context: None, message: None }
+    }
+
+    pub fn set_message(mut self, message: &str) -> Self {
+        self.message = Some(message.to_string());
+
+        self
+    }
+
+    pub fn set_context(mut self, context: &str) -> Self {
+        self.context = Some(context.to_string());
+
+        self
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.message.is_some() && self.context.is_some() {
+            write!(
+                f,
+                "the following is invalid to mvelopes:\n\n{}\n\nmore information: {}",
+                self.context.as_ref().unwrap(),
+                self.message.as_ref().unwrap(),
+            )
+        } else if let Some(a) = &self.message {
+            write!(f, "mvelopes flagged your journal file as invalid: {}", a)
+        } else if let Some(b) = &self.context {
+            write!(f, "the following is invalid to mvelopes:\n\n{}\n\nbut no further information was provided", b)
+        } else {
+            write!(f, "mvelopes found something invalid, but no information was provided")
         }
     }
 }

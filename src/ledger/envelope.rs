@@ -1,4 +1,4 @@
-use crate::ledger::errors::ChunkParseError;
+use crate::ledger::errors::ParseError;
 use crate::ledger::utils;
 use crate::ledger::Amount;
 use std::collections::HashSet;
@@ -20,13 +20,13 @@ pub enum EnvelopeType {
 }
 
 impl EnvelopeType {
-    fn from_str(raw: &str) -> Result<Self, ChunkParseError> {
+    fn from_str(raw: &str) -> Result<Self, ParseError> {
         match raw {
             "expense" => Ok(EnvelopeType::Expense),
             "goal" => Ok(EnvelopeType::Goal),
             _ => {
-                Err(ChunkParseError {
-                    chunk: Some(raw.to_string()),
+                Err(ParseError {
+                    context: Some(raw.to_string()),
                     message: Some("this envelope type doesn't exist; instead use either `expense` or `goal`".to_string())
                 })
             }
@@ -41,14 +41,14 @@ pub enum FundingMethod {
 }
 
 impl FundingMethod {
-    fn from_str(raw: &str) -> Result<Self, ChunkParseError> {
+    fn from_str(raw: &str) -> Result<Self, ParseError> {
         match raw {
             "manual" => Ok(FundingMethod::Manual),
             "aggressive" => Ok(FundingMethod::Aggressive),
             "conservative" => Ok(FundingMethod::Conservative),
             _ => {
-                Err(ChunkParseError {
-                    chunk: Some(raw.to_string()),
+                Err(ParseError {
+                    context: Some(raw.to_string()),
                     message: Some("this funding method doesn't exist".to_string()),
                 })
             }
@@ -70,7 +70,7 @@ pub enum Frequency {
 }
 
 impl Frequency {
-    pub fn parse(mut s: &str, date_format: &str) -> Result<Self, ChunkParseError> {
+    pub fn parse(mut s: &str, date_format: &str) -> Result<Self, ParseError> {
         // parse `starting` clause
         let (starting_date, starting_idx) = match Self::extract_starting(s, date_format) {
             Ok(o) => match o {
@@ -88,8 +88,8 @@ impl Frequency {
         if s.starts_with("every other ") {
             // stop if "starting" isn't given, since it's required here
             if starting_date.is_none() {
-                return Err(ChunkParseError {
-                    chunk: Some(s.to_string()),
+                return Err(ParseError {
+                    context: Some(s.to_string()),
                     message: Some("a `starting` clause is required for `every other` frequencies so mvelopes knows which weeks or months to use".to_string())
                 })
             }
@@ -103,8 +103,8 @@ impl Frequency {
             } else if let Some(d) = Self::parse_day_of_month(what) {
                 Ok(Self::Bimonthly(starting_date.unwrap(), d))
             } else {
-                Err(ChunkParseError {
-                    chunk: Some(s.to_string()),
+                Err(ParseError {
+                    context: Some(s.to_string()),
                     message: Some("invalid frequency".to_string())
                 })
             }
@@ -118,8 +118,8 @@ impl Frequency {
             } else if let Some(d) = Self::parse_day_of_month(what) {
                 Ok(Self::Monthly(starting_date, d))
             } else {
-                Err(ChunkParseError {
-                    chunk: Some(s.to_string()),
+                Err(ParseError {
+                    context: Some(s.to_string()),
                     message: Some("invalid frequency".to_string())
                 })
             }
@@ -132,16 +132,16 @@ impl Frequency {
                 Err(_) => {
                     let message = format!("couldn't parse `{}` with format `{}`", s, date_format);
 
-                    Err(ChunkParseError {
+                    Err(ParseError {
                         message: Some(message),
-                        chunk: None
+                        context: None
                     })
                 }
             }
         }
     }
 
-    fn extract_starting(s: &str, date_format: &str) -> Result<Option<(chrono::NaiveDate, usize)>, ChunkParseError> {
+    fn extract_starting(s: &str, date_format: &str) -> Result<Option<(chrono::NaiveDate, usize)>, ParseError> {
         let idx = match s.find(" starting ") {
             Some(i) => i,
             None => return Ok(None)
@@ -155,9 +155,9 @@ impl Frequency {
             Err(_) => {
                 let message = format!("couldn't parse starting date `{}` with format `{}`", s, date_format);
 
-                Err(ChunkParseError {
+                Err(ParseError {
                     message: Some(message),
-                    chunk: Some(s.to_string())
+                    context: Some(s.to_string())
                 })
             }
         }
@@ -182,13 +182,13 @@ impl Frequency {
 }
 
 impl Envelope {
-    pub fn parse(chunk: &str, account_name: &str, decimal_symbol: char, date_format: &str) -> Result<Self, ChunkParseError> {
+    pub fn parse(chunk: &str, account_name: &str, decimal_symbol: char, date_format: &str) -> Result<Self, ParseError> {
         let mut lines = chunk.lines();
 
         let mut envelope = if let Some(l) = lines.nth(0) {
             Self::from_header(l, date_format)?
         } else {
-            let err = ChunkParseError::new().set_chunk(&chunk).set_message("envelope header can't be parsed because it doesn't exist");
+            let err = ParseError::new().set_context(&chunk).set_message("envelope header can't be parsed because it doesn't exist");
             return Err(err)
         };
 
@@ -201,15 +201,15 @@ impl Envelope {
     }
 
     // returns the starting struct of an Envelope. the string passed in can include comments
-    fn from_header(header: &str, date_format: &str) -> Result<Self, ChunkParseError> {
+    fn from_header(header: &str, date_format: &str) -> Result<Self, ParseError> {
         let tokens = utils::remove_comments(header)
             .trim()
             .split_whitespace()
             .collect::<Vec<&str>>();
 
         if tokens.len() < 2 {
-            return Err(ChunkParseError {
-                chunk: Some(header.to_string()),
+            return Err(ParseError {
+                context: Some(header.to_string()),
                 message: Some("blank account definition".to_string())
             })
         }
@@ -235,7 +235,7 @@ impl Envelope {
         Ok(envelope)
     }
 
-    fn add_body(&mut self, body: &str, account_name: &str, decimal_symbol: char) -> Result<(), ChunkParseError> {
+    fn add_body(&mut self, body: &str, account_name: &str, decimal_symbol: char) -> Result<(), ParseError> {
         for line in body.lines() {
             let trimmed_line = utils::remove_comments(line).trim();
             let line_split = trimmed_line.split_whitespace().collect::<Vec<&str>>();
@@ -247,7 +247,7 @@ impl Envelope {
                 Some(i) => idx = i,
                 None => {
                     let message = format!("the property `{}` to an envelope (`{}` in {}) is blank", line_split[0], self.name, account_name);
-                    let err = ChunkParseError::new().set_message(&message);
+                    let err = ParseError::new().set_message(&message);
                     return Err(err)
                 }
             }
@@ -278,7 +278,7 @@ impl Envelope {
                         }
                     },
                     _ => {
-                        return Err(ChunkParseError::new().set_message(format!("the `{}` property isn't understood by mvelopes", key).as_str()))
+                        return Err(ParseError::new().set_message(format!("the `{}` property isn't understood by mvelopes", key).as_str()))
                     }
                 }
             }
@@ -287,22 +287,22 @@ impl Envelope {
         Ok(())
     }
 
-    fn add_account(&mut self, s: &str) -> Result<(), ChunkParseError> {
+    fn add_account(&mut self, s: &str) -> Result<(), ParseError> {
         let arg_count = s.split_whitespace().count();
 
         match arg_count.cmp(&1) {
             Ordering::Greater => {
                 // more than one token? account probably has spaces in it
-                Err(ChunkParseError {
+                Err(ParseError {
                     message: Some("remember that account names can't contain spaces; this `for` property couldn't be parsed correctly".to_string()),
-                    chunk: Some(s.to_string())
+                    context: Some(s.to_string())
                 })
             },
             Ordering::Less => {
                 // something less than one token? that's an issue
-                Err(ChunkParseError {
+                Err(ParseError {
                     message: Some("a `for` property is blank".to_string()),
-                    chunk: Some(s.to_string()),
+                    context: Some(s.to_string()),
                 })
             },
             Ordering::Equal => {
@@ -313,7 +313,7 @@ impl Envelope {
         }
     }
 
-    fn extract_frequency(header: &str, date_format: &str) -> Result<Frequency, ChunkParseError> {
+    fn extract_frequency(header: &str, date_format: &str) -> Result<Frequency, ParseError> {
         let clean_header = utils::remove_comments(header);
         if clean_header.contains("no date") {
             return Ok(Frequency::Never)
@@ -331,9 +331,9 @@ impl Envelope {
                     frequency_index = i + "due ".len();
                 },
                 // if that's not found, then pbpbpbpbpbpbpbpbpbp
-                None => return Err(ChunkParseError {
+                None => return Err(ParseError {
                     message: Some("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date".to_string()),
-                    chunk: Some(clean_header.to_string())
+                    context: Some(clean_header.to_string())
                 })
             }
         }

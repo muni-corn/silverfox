@@ -1,5 +1,5 @@
 use crate::ledger::envelope::Envelope;
-use crate::ledger::errors::ChunkParseError;
+use crate::ledger::errors::ParseError;
 use crate::ledger::utils;
 use std::collections::HashMap;
 use std::cmp::Ordering;
@@ -14,13 +14,13 @@ impl Account {
         chunk: &str,
         decimal_symbol: char,
         date_format: &str,
-    ) -> Result<Self, ChunkParseError> {
+    ) -> Result<Self, ParseError> {
         let mut lines = chunk.lines();
-        let header = match lines.nth(0) {
+        let header = match lines.next() {
             Some(l) => l,
             None => {
-                return Err(ChunkParseError::new()
-                    .set_chunk(chunk)
+                return Err(ParseError::new()
+                    .set_context(chunk)
                     .set_message("account header can't be parsed because it doesn't exist"))
             }
         };
@@ -53,23 +53,23 @@ impl Account {
     }
 
     // returns the name of the account
-    fn parse_header(mut line: &str) -> Result<String, ChunkParseError> {
+    fn parse_header(mut line: &str) -> Result<String, ParseError> {
         // remove comments
         line = utils::remove_comments(line);
 
         let tokens = line.trim().split_whitespace().collect::<Vec<&str>>();
         match tokens.len().cmp(&2) {
             Ordering::Greater => {
-                Err(ChunkParseError {
-                    chunk: Some(line.to_string()),
+                Err(ParseError {
+                    context: Some(line.to_string()),
                     message: Some(
                         "accounts can't have spaces in them; use underscores instead: _".to_string(),
                     ),
                 })
             },
             Ordering::Less => {
-                Err(ChunkParseError {
-                    chunk: Some(line.to_string()),
+                Err(ParseError {
+                    context: Some(line.to_string()),
                     message: Some("blank account definition".to_string()),
                 })
             },

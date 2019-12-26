@@ -9,9 +9,18 @@ fn main() {
     // let mvelopes_file: String = get_mvelopes_file().unwrap();
 
     // parse ledger
-    if let Err(e) = ledger::Ledger::from_file(&ledger_path) {
-        eprintln!("{}", e)
-    }
+    let ledger;
+    match ledger::Ledger::from_file(&ledger_path) {
+        Ok(l) => {
+            ledger = l;
+        },
+        Err(e) => {
+            eprintln!("{}", e);
+            return
+        }
+    };
+
+    println!("{}", ledger);
 }
 
 // fn get_mvelopes_file() -> Result<String, String> {
