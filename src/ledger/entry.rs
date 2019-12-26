@@ -1,13 +1,13 @@
 use crate::ledger::errors::*;
-use crate::ledger::Amount;
 use crate::ledger::utils;
-use std::fmt;
+use crate::ledger::Amount;
 use std::collections::HashSet;
+use std::fmt;
 
 pub enum EntryStatus {
     Pending,    // ?
     Cleared,    // !
-    Reconciled  // *
+    Reconciled, // *
 }
 
 pub struct Posting {
@@ -17,7 +17,7 @@ pub struct Posting {
     price_assertion: Option<Amount>,
     balance_assertion: Option<Amount>,
     total_balance_assertion: Option<Amount>,
-    envelope_name: Option<String>       // if Some, it's an envelope posting
+    envelope_name: Option<String>, // if Some, it's an envelope posting
 }
 
 // pub enum PostingType {
@@ -35,7 +35,7 @@ impl Posting {
             price_assertion: None,
             balance_assertion: None,
             total_balance_assertion: None,
-            envelope_name: None
+            envelope_name: None,
         }
     }
 
@@ -52,7 +52,7 @@ impl Posting {
                 posting.account = tokens[1].to_string();
                 posting.envelope_name = Some(tokens[2].to_string());
                 amount_tokens = tokens[3..].to_vec();
-            },
+            }
             _ => {
                 posting.account = tokens[0].to_string();
                 amount_tokens = tokens[1..].to_vec();
@@ -68,36 +68,46 @@ impl Posting {
         }
     }
 
-    fn parse_amount(&mut self, amount_tokens: &[&str], decimal_symbol: char) -> Result<(), ParseError> {
+    fn parse_amount(
+        &mut self,
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<(), ParseError> {
         let mut iter = amount_tokens.iter();
         let raw_amount = match iter.position(|&s| s == "@" || s == "!" || s == "=" || s == "!!") {
             Some(cutoff) => amount_tokens[..cutoff].join(" "),
-            None => amount_tokens.join(" ")
+            None => amount_tokens.join(" "),
         };
 
         if raw_amount.trim().is_empty() {
             self.amount = None;
-            return Ok(())
+            return Ok(());
         }
 
         self.amount = match Amount::parse(&raw_amount, decimal_symbol) {
             Ok(a) => Some(a),
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         };
 
         Ok(())
     }
 
-    fn parse_assertion_amounts(&mut self, amount_tokens: &[&str], decimal_symbol: char) -> Result<(), ParseError> {
-        self.balance_assertion = match Self::parse_balance_assertion_amount(amount_tokens, decimal_symbol) {
-            Ok(a) => a,
-            Err(e) => return Err(e)
-        };
+    fn parse_assertion_amounts(
+        &mut self,
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<(), ParseError> {
+        self.balance_assertion =
+            match Self::parse_balance_assertion_amount(amount_tokens, decimal_symbol) {
+                Ok(a) => a,
+                Err(e) => return Err(e),
+            };
 
-        self.total_balance_assertion = match Self::parse_total_balance_assertion_amount(amount_tokens, decimal_symbol) {
-            Ok(a) => a,
-            Err(e) => return Err(e)
-        };
+        self.total_balance_assertion =
+            match Self::parse_total_balance_assertion_amount(amount_tokens, decimal_symbol) {
+                Ok(a) => a,
+                Err(e) => return Err(e),
+            };
 
         self.price_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
             Ok(price_opt) => {
@@ -128,40 +138,68 @@ impl Posting {
                                 // nothing there? nothing will be used
                                 None
                             }
-                        },
-                        Err(e) => return Err(e)
+                        }
+                        Err(e) => return Err(e),
                     }
                 }
             }
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         };
 
         Ok(())
     }
 
-    fn parse_balance_assertion_amount(amount_tokens: &[&str], decimal_symbol: char) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!", |&s| s == "!!" || s == "@" || s == "=")
+    fn parse_balance_assertion_amount(
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<Option<Amount>, ParseError> {
+        Self::extract_amount(amount_tokens, decimal_symbol, "!", |&s| {
+            s == "!!" || s == "@" || s == "="
+        })
     }
 
-    fn parse_total_balance_assertion_amount(amount_tokens: &[&str], decimal_symbol: char) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!!", |&s| s == "!" || s == "@" || s == "=")
+    fn parse_total_balance_assertion_amount(
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<Option<Amount>, ParseError> {
+        Self::extract_amount(amount_tokens, decimal_symbol, "!!", |&s| {
+            s == "!" || s == "@" || s == "="
+        })
     }
 
-    fn parse_price_amount(amount_tokens: &[&str], decimal_symbol: char) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| s == "!" || s == "!!" || s == "=")
+    fn parse_price_amount(
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<Option<Amount>, ParseError> {
+        Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
+            s == "!" || s == "!!" || s == "="
+        })
     }
 
-    fn parse_total_cost_amount(amount_tokens: &[&str], decimal_symbol: char) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| s == "!" || s == "!!" || s == "@")
+    fn parse_total_cost_amount(
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+    ) -> Result<Option<Amount>, ParseError> {
+        Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
+            s == "!" || s == "!!" || s == "@"
+        })
     }
 
-    fn extract_amount<P>(amount_tokens: &[&str], decimal_symbol: char, wanted_operator: &str, unwanted_op_predicate: P) -> Result<Option<Amount>, ParseError> where P: FnMut(&&str) -> bool {
+    fn extract_amount<P>(
+        amount_tokens: &[&str],
+        decimal_symbol: char,
+        wanted_operator: &str,
+        unwanted_op_predicate: P,
+    ) -> Result<Option<Amount>, ParseError>
+    where
+        P: FnMut(&&str) -> bool,
+    {
         // find the balance_assertion token
         let mut iter = amount_tokens.iter();
         match iter.position(|&s| s == wanted_operator) {
             Some(i) => {
                 // trim unwanted tokens
-                let mut useful_tokens = &amount_tokens[i+1..];
+                let mut useful_tokens = &amount_tokens[i + 1..];
 
                 // find any other tokens that should be filtered out
                 if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
@@ -172,12 +210,10 @@ impl Posting {
                 // parse the amount
                 match Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol) {
                     Ok(a) => Ok(Some(a)),
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
-            },
-            None => {
-                Ok(None)
             }
+            None => Ok(None),
         }
     }
 }
@@ -211,11 +247,15 @@ pub struct Entry {
     status: EntryStatus,
     description: String,
     payee: Option<String>,
-    postings: Vec<Posting>
+    postings: Vec<Posting>,
 }
 
 impl Entry {
-    pub fn parse(chunk: &str, date_format: &str, decimal_symbol: char) -> Result<Self, MvelopesError> {
+    pub fn parse(
+        chunk: &str,
+        date_format: &str,
+        decimal_symbol: char,
+    ) -> Result<Self, MvelopesError> {
         let trimmed_chunk = chunk.trim();
         if trimmed_chunk.is_empty() {
             return Err(ParseError {
@@ -231,7 +271,7 @@ impl Entry {
             Self::parse_header(l, date_format)?
         } else {
             let err = ParseError::new().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with mvelopes's programming. please report it!");
-            return Err(MvelopesError::from(err))
+            return Err(MvelopesError::from(err));
         };
 
         for raw_posting in lines {
@@ -242,12 +282,12 @@ impl Entry {
 
             match Posting::parse(raw_posting, decimal_symbol) {
                 Ok(p) => entry.postings.push(p),
-                Err(e) => return Err(MvelopesError::from(e))
+                Err(e) => return Err(MvelopesError::from(e)),
             }
         }
 
         if let Err(e) = entry.validate(chunk) {
-            return Err(MvelopesError::from(e))
+            return Err(MvelopesError::from(e));
         }
 
         Ok(entry)
@@ -258,18 +298,21 @@ impl Entry {
         let header_tokens = clean_header.split_whitespace().collect::<Vec<&str>>();
 
         if header_tokens.is_empty() {
-            return Err(ParseError::new().set_message("couldn't parse an entry header because it's blank. this is an error with mvelopes's programming; please report it!"))
+            return Err(ParseError::new().set_message("couldn't parse an entry header because it's blank. this is an error with mvelopes's programming; please report it!"));
         }
 
         // parse date
         let date = match chrono::NaiveDate::parse_from_str(header_tokens[0], date_format) {
             Ok(d) => d,
-            Err(_) => {
-                let message = format!("couldn't parse date `{}` with format `{}`", header_tokens[0], date_format);
+            _ => {
+                let message = format!(
+                    "couldn't parse date `{}` with format `{}`",
+                    header_tokens[0], date_format
+                );
                 return Err(ParseError {
                     message: Some(message),
-                    context: Some(clean_header.to_string())
-                })
+                    context: Some(clean_header.to_string()),
+                });
             }
         };
 
@@ -292,15 +335,12 @@ impl Entry {
                 // description and everything in the brackets as the payee
                 // yeah, this means anything after the closing bracket won't be included :/
                 let d = description_and_payee[..i].trim().to_string();
-                let p = description_and_payee[i+1..j].trim().to_string();
+                let p = description_and_payee[i + 1..j].trim().to_string();
 
                 (d, Some(p))
             } else {
                 // only opening bracket exists, and that's kind of an issue
-                return Err(ParseError {
-                    message: Some("mvelopes wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket (])".to_string()),
-                    context: Some(header.to_string())
-                })
+                return Err(ParseError::new().set_message("mvelopes wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
             }
         } else {
             (description_and_payee.to_string(), None)
@@ -311,10 +351,17 @@ impl Entry {
             description,
             date,
             status,
-            postings: Vec::new()
+            postings: Vec::new(),
         })
     }
 
+    /// Checks that the Entry is valid. Returns a ValidationError if it is invalid. An Entry is
+    /// valid when all of the following are true:
+    ///
+    /// - it contains no more than one blank posting amount
+    /// - it's balanced (the sum of its postings equals zero)
+    /// - it contains no more than one type of currency when a blank posting amount exists (later
+    ///   to be supported)
     fn validate(&self, context: &str) -> Result<(), ValidationError> {
         let mut blank_amounts = 0;
         let mut symbol_set = HashSet::new();
@@ -330,7 +377,9 @@ impl Entry {
 
                 // if more than one blank amount, quit here and throw an error
                 if blank_amounts > 1 {
-                    return Err(ValidationError::new().set_message("a single entry can't have more than one blank posting").set_context(context))
+                    return Err(ValidationError::new()
+                        .set_message("a single entry can't have more than one blank posting")
+                        .set_context(context));
                 }
             }
         }
@@ -339,7 +388,7 @@ impl Entry {
         // blank's amount; there's a way around this that will be worked out in the future, but for
         // now it will be unsupported: TODO
         if blank_amounts > 0 && symbol_set.len() > 1 {
-            return Err(ValidationError::new().set_message("mvelopes can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context))
+            return Err(ValidationError::new().set_message("mvelopes can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context));
         }
 
         Ok(())
@@ -357,7 +406,7 @@ impl fmt::Display for Entry {
         write!(f, "{} - {} ({})\n", self.date, self.description, payee)?;
         for posting in &self.postings {
             if let Err(e) = writeln!(f, "{}", posting) {
-                return Err(e)
+                return Err(e);
             }
         }
 

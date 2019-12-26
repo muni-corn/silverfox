@@ -141,6 +141,8 @@ impl Frequency {
         }
     }
 
+    /// Extracts and parses the `starting` clause of an Envelope. The Result returned uses an
+    /// Option because a `starting` may exist or not exist.
     fn extract_starting(s: &str, date_format: &str) -> Result<Option<(chrono::NaiveDate, usize)>, ParseError> {
         let idx = match s.find(" starting ") {
             Some(i) => i,
@@ -163,6 +165,7 @@ impl Frequency {
         }
     }
 
+    /// Parses, you know, a Weekday. Returns an Option because it may or may not exist.
     fn parse_weekday(s: &str) -> Option<chrono::Weekday> {
         match chrono::Weekday::from_str(s) {
             Ok(w) => Some(w),
@@ -170,6 +173,9 @@ impl Frequency {
         }
     }
 
+    /// Parses a day of the month. Returns an Option because it may or may not exist. Any
+    /// non-digits are removed from the string to parse a number. So, technically, you could write
+    /// "1stjalsdkxbuz" and it would still return 1. "2faxcbya7uw" would return 27.
     fn parse_day_of_month(s: &str) -> Option<i8> {
         // filter out any letters, spaces, etc, and parse the number in the string
         let num = s.chars().filter(|c| c.is_digit(10)).collect::<String>();
@@ -200,7 +206,8 @@ impl Envelope {
         Ok(envelope)
     }
 
-    // returns the starting struct of an Envelope. the string passed in can include comments
+    /// Returns the starting struct of an Envelope. The string passed in can include ledger
+    /// comments.
     fn from_header(header: &str, date_format: &str) -> Result<Self, ParseError> {
         let tokens = utils::remove_comments(header)
             .trim()

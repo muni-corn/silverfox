@@ -31,7 +31,8 @@ impl fmt::Display for MvelopesError {
     }
 }
 
-/// ParseError is thrown during the parsing phase of ledger construction. If mvelopes can't parse something, this error type will be thrown.
+/// ParseError is thrown during the parsing phase of ledger construction. If mvelopes can't parse
+/// something, this error type will be thrown.
 #[derive(Debug)]
 pub struct ParseError {
     pub context: Option<String>,
@@ -39,16 +40,19 @@ pub struct ParseError {
 }
 
 impl ParseError {
+    /// Returns a fresh, blank ParseError.
     pub fn new() -> Self {
         ParseError { context: None, message: None }
     }
 
+    /// Sets the message of the error, returning itself for the convenience of chaining.
     pub fn set_message(mut self, message: &str) -> Self {
         self.message = Some(message.to_string());
 
         self
     }
 
+    /// Sets the context (chunk) of the error, returning itself for the convenience of chaining.
     pub fn set_context(mut self, context: &str) -> Self {
         self.context = Some(context.to_string());
 
@@ -75,7 +79,8 @@ impl fmt::Display for ParseError {
     }
 }
 
-/// ValidationError is thrown during the validation phase of ledger construction. If mvelopes finds something that's invalid and can't continue with construction, this error type will be thrown.
+/// ValidationError is thrown during the validation phase of ledger construction. If mvelopes finds
+/// something that's invalid and can't continue with construction, this error type will be thrown.
 #[derive(Debug)]
 pub struct ValidationError {
     pub context: Option<String>,
@@ -83,16 +88,19 @@ pub struct ValidationError {
 }
 
 impl ValidationError {
+    /// Returns a fresh, blank ValidationError.
     pub fn new() -> Self {
         Self { context: None, message: None }
     }
 
+    /// Sets the message of the error, returning itself for the convenience of chaining.
     pub fn set_message(mut self, message: &str) -> Self {
         self.message = Some(message.to_string());
 
         self
     }
 
+    /// Sets the context (chunk) of the error, returning itself for the convenience of chaining.
     pub fn set_context(mut self, context: &str) -> Self {
         self.context = Some(context.to_string());
 
