@@ -202,10 +202,10 @@ impl Entry {
                 // if multiple currencies exist, attempt to return the sum of the native amounts.
                 // if any of the native amounts are None, the calculation fails and this function
                 // returns an error
-                let mut native_sum = 0.0;
+                let mut native_blank_amount = 0.0;
                 for posting in &self.postings {
                     match posting.get_native_value() {
-                        Some(v) => native_sum += v,
+                        Some(v) => native_blank_amount -= v,
                         None => {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
@@ -218,19 +218,19 @@ impl Entry {
                 }
 
                 Ok(Some(Amount {
-                    mag: native_sum,
+                    mag: native_blank_amount,
                     symbol: None
                 }))
             } else {
-                // for each posting, add that posting's amount to the blank amount (as long as
-                // `posting` has a blank amount)
+                // for each posting, subtract that posting's amount from the blank amount (as long as
+                // `posting` doesn't have a blank amount)
                 for posting in &self.postings {
                     if let Some(a) = posting.get_amount() {
-                        blank_amount += a;
+                        blank_amount -= a;
                     }
                 }
 
-                Ok(Some(-blank_amount))
+                Ok(Some(blank_amount))
             }
         }
     }
@@ -301,6 +301,10 @@ impl Entry {
 
     pub fn get_date(&self) -> &chrono::NaiveDate {
         &self.date
+    }
+
+    pub fn has_blank_posting(&self) -> bool {
+        self.has_blank_posting
     }
 }
 
