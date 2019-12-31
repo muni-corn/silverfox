@@ -1,244 +1,28 @@
 use crate::ledger::errors::*;
 use crate::ledger::utils;
-use crate::ledger::Amount;
-use std::collections::HashSet;
+use crate::ledger::Posting;
+use crate::ledger::{Amount, Account};
+use std::collections::{HashSet, HashMap};
 use std::fmt;
 
 pub enum EntryStatus {
-    Pending,    // ?
-    Cleared,    // !
-    Reconciled, // *
+    /// `?`
+    Pending,
+    /// `!`
+    Cleared,
+    /// `*`
+    Reconciled,
 }
 
-pub struct Posting {
-    amount: Option<Amount>,
-    account: String,
-    // posting_type: PostingType,
-    price_assertion: Option<Amount>,
-    balance_assertion: Option<Amount>,
-    total_balance_assertion: Option<Amount>,
-    envelope_name: Option<String>, // if Some, it's an envelope posting
-}
-
-// pub enum PostingType {
-//     Real,
-//     BalancedVirtual,
-//     UnbalancedVirtual,
-// }
-
-impl Posting {
-    fn new() -> Self {
-        Self {
-            amount: None,
-            account: String::new(),
-            // posting_type: PostingType::Real,
-            price_assertion: None,
-            balance_assertion: None,
-            total_balance_assertion: None,
-            envelope_name: None,
-        }
-    }
-
-    pub fn parse(line: &str, decimal_symbol: char) -> Result<Self, ParseError> {
-        let mut posting = Self::new();
-
-        // remove comments and other impurities
-        let trimmed_line = utils::remove_comments(line).trim();
-        let tokens = trimmed_line.split_whitespace().collect::<Vec<&str>>();
-
-        let amount_tokens: Vec<&str>;
-        match tokens[0] {
-            "envelope" => {
-                posting.account = tokens[1].to_string();
-                posting.envelope_name = Some(tokens[2].to_string());
-                amount_tokens = tokens[3..].to_vec();
-            }
-            _ => {
-                posting.account = tokens[0].to_string();
-                amount_tokens = tokens[1..].to_vec();
-            }
-        }
-
-        if let Err(e) = posting.parse_amount(&amount_tokens, decimal_symbol) {
-            Err(e)
-        } else if let Err(e) = posting.parse_assertion_amounts(&amount_tokens, decimal_symbol) {
-            Err(e)
-        } else {
-            Ok(posting)
-        }
-    }
-
-    fn parse_amount(
-        &mut self,
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<(), ParseError> {
-        let mut iter = amount_tokens.iter();
-        let raw_amount = match iter.position(|&s| s == "@" || s == "!" || s == "=" || s == "!!") {
-            Some(cutoff) => amount_tokens[..cutoff].join(" "),
-            None => amount_tokens.join(" "),
-        };
-
-        if raw_amount.trim().is_empty() {
-            self.amount = None;
-            return Ok(());
-        }
-
-        self.amount = match Amount::parse(&raw_amount, decimal_symbol) {
-            Ok(a) => Some(a),
-            Err(e) => return Err(e),
-        };
-
-        Ok(())
-    }
-
-    fn parse_assertion_amounts(
-        &mut self,
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<(), ParseError> {
-        self.balance_assertion =
-            match Self::parse_balance_assertion_amount(amount_tokens, decimal_symbol) {
-                Ok(a) => a,
-                Err(e) => return Err(e),
-            };
-
-        self.total_balance_assertion =
-            match Self::parse_total_balance_assertion_amount(amount_tokens, decimal_symbol) {
-                Ok(a) => a,
-                Err(e) => return Err(e),
-            };
-
-        self.price_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
-            Ok(price_opt) => {
-                // parsing succeeded, if there is a price, use that
-                if let Some(price) = price_opt {
-                    Some(price)
-                } else {
-                    // if no price, try to parse total cost
-                    match Self::parse_total_cost_amount(amount_tokens, decimal_symbol) {
-                        Ok(total_cost_opt) => {
-                            // successful, so see if something's there
-                            if let Some(total_cost) = total_cost_opt {
-                                match &self.amount {
-                                    Some(a) => {
-                                        // to determine price, we have to figure it out by dividing
-                                        // the total cost by the original amount of this posting
-
-                                        let calculated_price_amt = Amount {
-                                            mag: total_cost.mag / a.mag,
-                                            symbol: a.symbol.clone()
-                                        };
-
-                                        Some(calculated_price_amt)
-                                    },
-                                    None => return Err(ParseError::new().set_message("a total cost assertion can't be supplied if the posting has no amount"))
-                                }
-                            } else {
-                                // nothing there? nothing will be used
-                                None
-                            }
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-            Err(e) => return Err(e),
-        };
-
-        Ok(())
-    }
-
-    fn parse_balance_assertion_amount(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!", |&s| {
-            s == "!!" || s == "@" || s == "="
-        })
-    }
-
-    fn parse_total_balance_assertion_amount(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!!", |&s| {
-            s == "!" || s == "@" || s == "="
-        })
-    }
-
-    fn parse_price_amount(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
-            s == "!" || s == "!!" || s == "="
-        })
-    }
-
-    fn parse_total_cost_amount(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
-            s == "!" || s == "!!" || s == "@"
-        })
-    }
-
-    fn extract_amount<P>(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-        wanted_operator: &str,
-        unwanted_op_predicate: P,
-    ) -> Result<Option<Amount>, ParseError>
-    where
-        P: FnMut(&&str) -> bool,
-    {
-        // find the balance_assertion token
-        let mut iter = amount_tokens.iter();
-        match iter.position(|&s| s == wanted_operator) {
-            Some(i) => {
-                // trim unwanted tokens
-                let mut useful_tokens = &amount_tokens[i + 1..];
-
-                // find any other tokens that should be filtered out
-                if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
-                    // trim unwanted tokens
-                    useful_tokens = &useful_tokens[..i];
-                }
-
-                // parse the amount
-                match Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol) {
-                    Ok(a) => Ok(Some(a)),
-                    Err(e) => Err(e),
-                }
-            }
-            None => Ok(None),
-        }
-    }
-}
-
-impl fmt::Display for Posting {
+impl fmt::Display for EntryStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut postlude = String::new();
+        let symbol = match self {
+            EntryStatus::Reconciled => '*',
+            EntryStatus::Cleared => '!',
+            EntryStatus::Pending => '?'
+        };
 
-        if let Some(a) = &self.amount {
-            postlude.push_str(&a.display());
-        }
-
-        if let Some(p) = &self.price_assertion {
-            postlude.push_str(&format!(" @ {}", p));
-        }
-
-        if let Some(b) = &self.balance_assertion {
-            postlude.push_str(&format!(" ! {}", b));
-        }
-
-        if let Some(t) = &self.total_balance_assertion {
-            postlude.push_str(&format!(" !! {}", t));
-        }
-
-        write!(f, "\t{:40} {}", self.account, postlude)
+        write!(f, "{}", symbol)
     }
 }
 
@@ -247,7 +31,19 @@ pub struct Entry {
     status: EntryStatus,
     description: String,
     payee: Option<String>,
-    postings: Vec<Posting>,
+    pub postings: Vec<Posting>,
+
+    /// True if the Entry has a posting with a blank amount. Must be kept private to prevent any
+    /// mutations from outside the struct.
+    has_blank_posting: bool,
+
+    /// True if the Entry has more than one type of currency throughout. Private so that external
+    /// code can't modify this boolean. It is set in the parsing process of an Entry.
+    mixed_currencies: bool,
+
+    /// True if the Entry has a posting for an envelope. Private so that external code can't modify
+    /// this boolean. It is set in the parsing process of an Entry.
+    has_envelope_posting: bool,
 }
 
 impl Entry {
@@ -255,6 +51,7 @@ impl Entry {
         chunk: &str,
         date_format: &str,
         decimal_symbol: char,
+        accounts: &HashMap<String, Account>,
     ) -> Result<Self, MvelopesError> {
         let trimmed_chunk = chunk.trim();
         if trimmed_chunk.is_empty() {
@@ -274,18 +71,53 @@ impl Entry {
             return Err(MvelopesError::from(err));
         };
 
+        let mut symbol_set: HashSet<String> = HashSet::new();
+
+        // parse postings
         for raw_posting in lines {
             // if blank, skip
             if raw_posting.trim().is_empty() {
                 continue;
             }
 
-            match Posting::parse(raw_posting, decimal_symbol) {
-                Ok(p) => entry.postings.push(p),
+            match Posting::parse(raw_posting, decimal_symbol, &accounts) {
+                Ok(p) => {
+                    if p.get_amount().is_none() {
+                        // this entry now has a blank posting. this must be set so that
+                        // get_blank_amount knows whether to return None or Some
+                        entry.has_blank_posting = true;
+                    } else if let Some(s) = &p.get_amount().as_ref().unwrap().symbol { // unwrap is safe here since the last if statement failed
+                        // this block shouldn't execute if the posting is blank, which is why this
+                        // section is in an 'else' block
+                        // if the symbol to the posting's amount exists, add it to the symbol set
+                        symbol_set.insert(s.to_owned());
+                    } else {
+                        // if the symbol doesn't exist, add the blank symbol
+                        symbol_set.insert("".to_string());
+                    }
+
+                    if p.get_envelope_name().is_some() {
+                        // this entry now has a blank posting. this must be set so that
+                        // get_blank_amount knows whether to return None or Some
+
+                        entry.has_envelope_posting = true;
+                    }
+
+                    // push the posting
+                    entry.postings.push(p);
+                },
                 Err(e) => return Err(MvelopesError::from(e)),
             }
         }
 
+        // parsing all postings is done. if there are multiple currencies involved in this entry,
+        // set the boolean as such
+        
+        if symbol_set.len() > 1 {
+            entry.mixed_currencies = true;
+        }
+
+        // validate this entry
         if let Err(e) = entry.validate(chunk) {
             return Err(MvelopesError::from(e));
         }
@@ -352,7 +184,55 @@ impl Entry {
             date,
             status,
             postings: Vec::new(),
+            has_blank_posting: false,
+            mixed_currencies: false,
+            has_envelope_posting: false,
         })
+    }
+
+    pub fn get_blank_amount(&self) -> Result<Option<Amount>, ProcessingError> {
+        if !self.has_blank_posting {
+            // return None if the Entry has no blank amount
+            Ok(None)
+        } else {
+            let mut blank_amount = Amount::zero();
+
+            // calculation of the blank amount depends on whether or not multiple currencies exist
+            if self.mixed_currencies {
+                // if multiple currencies exist, attempt to return the sum of the native amounts.
+                // if any of the native amounts are None, the calculation fails and this function
+                // returns an error
+                let mut native_sum = 0.0;
+                for posting in &self.postings {
+                    match posting.get_native_value() {
+                        Some(v) => native_sum += v,
+                        None => {
+                            // native_value will be None for the blank amount, so only throw an
+                            // error if the posting's amount is Some
+                            if posting.get_amount().is_some() {
+                                let err = ProcessingError::new().set_message("mvelopes couldn't calculate a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                return Err(ProcessingError::from(err))
+                            }
+                        }
+                    }
+                }
+
+                Ok(Some(Amount {
+                    mag: native_sum,
+                    symbol: None
+                }))
+            } else {
+                // for each posting, add that posting's amount to the blank amount (as long as
+                // `posting` has a blank amount)
+                for posting in &self.postings {
+                    if let Some(a) = posting.get_amount() {
+                        blank_amount += a;
+                    }
+                }
+
+                Ok(Some(-blank_amount))
+            }
+        }
     }
 
     /// Checks that the Entry is valid. Returns a ValidationError if it is invalid. An Entry is
@@ -367,7 +247,7 @@ impl Entry {
         let mut symbol_set = HashSet::new();
         for posting in &self.postings {
             // does amount exist?
-            if let Some(a) = &posting.amount {
+            if let Some(a) = posting.get_amount() {
                 // if so, add its symbol to the set if it exists
                 if let Some(s) = &a.symbol {
                     symbol_set.insert(s);
@@ -393,23 +273,39 @@ impl Entry {
 
         Ok(())
     }
-}
 
-impl fmt::Display for Entry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    pub fn display(&self) -> String {
         let payee = if let Some(p) = &self.payee {
             p
         } else {
             "No payee"
         };
 
-        write!(f, "{} - {} ({})\n", self.date, self.description, payee)?;
+        let mut s = format!("{} {} {} [{}]", self.date, self.status, self.description, payee);
         for posting in &self.postings {
-            if let Err(e) = writeln!(f, "{}", posting) {
-                return Err(e);
-            }
+            s.push_str(&format!("\n{}", posting));
         }
 
-        Ok(())
+        s
+    }
+
+    pub fn has_envelope_postings(&self) -> bool {
+        self.has_envelope_posting
+    }
+
+    pub fn get_envelope_postings(&self) -> Vec<Posting> {
+        let mut clone = self.postings.clone();
+        clone.retain(|p| p.get_envelope_name().is_some());
+        clone
+    }
+
+    pub fn get_date(&self) -> &chrono::NaiveDate {
+        &self.date
+    }
+}
+
+impl fmt::Display for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.display())
     }
 }

@@ -20,7 +20,13 @@ fn main() {
         }
     };
 
-    println!("{}", ledger);
+    // `envelopes` command
+    ledger.display_envelopes();
+
+    // `balance` command
+    // if let Err(e) = ledger.display_flat_balance() {
+    //     eprintln!("{}", e);
+    // }
 }
 
 // fn get_mvelopes_file() -> Result<String, String> {
