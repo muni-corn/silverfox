@@ -560,7 +560,7 @@ impl Envelope {
         let width_f = width as f64;
         let progress = (amt.mag * width_f / self.amount.mag).min(width_f).max(0.0) as usize;
         let trough = width - progress;
-        format!("|{}{}|", "=".repeat(progress), " ".repeat(trough))
+        format!("[{}{}]", "=".repeat(progress), " ".repeat(trough))
     }
 
     fn make_text_progress(&self, amt: &Amount) -> String {
@@ -743,7 +743,7 @@ impl fmt::Display for Envelope {
 
         // get now stuff
         let now_text = self.make_text_progress(&self.now_amount);
-        let now_bar = self.make_bar(&self.now_amount, 40);
+        let now_bar = self.make_bar(&self.now_amount, progress_bar_width);
 
         // get next stuff
         let next_prelude = if let Some(d) = self.get_next_due_date() {
