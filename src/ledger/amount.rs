@@ -1,10 +1,15 @@
+use std::ops::{Add, AddAssign, SubAssign, Neg};
+use crate::ledger::errors::*;
+use std::fmt;
+
+#[derive(Clone)]
 pub struct Amount {
-    mag: f64,
-    symbol: Option<String>,
+    pub mag: f64,
+    pub symbol: Option<String>,
 }
 
 impl Amount {
-    fn parse(s: &str, decimal_symbol: char) -> Result<Self, ParseError> {
+    pub fn parse(s: &str, decimal_symbol: char) -> Result<Self, ParseError> {
         let split = s.split_whitespace().collect::<Vec<&str>>();
 
         let clump = match split.len() {
@@ -39,9 +44,10 @@ impl Amount {
             .chars()
             .filter(|&c| Self::is_symbol_char(c, decimal_symbol))
             .collect::<String>();
-        let symbol = match raw_sym.trim().len() {
+        let trimmed_raw_sym = raw_sym.trim();
+        let symbol = match trimmed_raw_sym.len() {
             0 => None,
-            _ => Some(raw_sym.trim().to_string()),
+            _ => Some(trimmed_raw_sym.to_string()),
         };
 
         Ok(Self { mag, symbol })
@@ -66,20 +72,20 @@ impl Amount {
     }
 
     pub fn display(&self) -> String {
-        let mag = if self.mag < 0.0 {
-            format!("{}", self.mag)
+        let mag_fmt: String = if self.mag < 0.0 {
+            format!("{}", (self.mag*100_000_000.0).round() / 100_000_000.0)
         } else {
-            format!(" {}", self.mag)
+            format!(" {}", (self.mag*100_000_000.0).round() / 100_000_000.0)
         };
 
         if let Some(s) = &self.symbol {
             if s.len() <= 2 {
-                format!("{}{}", s, mag)
+                format!("{}{}", s, mag_fmt)
             } else {
-                format!("{} {}", mag, s)
+                format!("{} {}", mag_fmt, s)
             }
         } else {
-            format!("{}", mag)
+            format!("{}", mag_fmt)
         }
     }
 }
@@ -87,5 +93,105 @@ impl Amount {
 impl fmt::Display for Amount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.display())
+    }
+
+}
+
+/// + operator
+impl Add<&Amount> for Amount {
+    type Output = Self;
+
+    fn add(mut self, rhs: &Amount) -> Self::Output {
+        if self.symbol != rhs.symbol {
+            panic!("tried to add two amounts with differing symbols: {} and {}", self, rhs);
+        }
+
+        self.mag += rhs.mag;
+
+        self
+    }
+}
+
+/// += operator
+impl AddAssign<&Amount> for Amount {
+    fn add_assign(&mut self, rhs: &Amount) {
+        if self.symbol != rhs.symbol {
+            panic!("tried to add two amounts with differing symbols: {} and {}", self, rhs);
+        }
+
+        self.mag += rhs.mag;
+    }
+}
+
+/// -= operator
+impl SubAssign<&Amount> for Amount {
+    fn sub_assign(&mut self, rhs: &Amount) {
+        if self.symbol != rhs.symbol {
+            panic!("tried to operate on two amounts with differing symbols: {} and {}", self, rhs);
+        }
+
+        self.mag -= rhs.mag;
+    }
+}
+
+/// negation operator
+impl Neg for Amount {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self::Output {
+            mag: -self.mag,
+            symbol: self.symbol,
+        }
+    }
+}
+
+/// AmountPool is a collection of amounts, possibly with different currencies. AmountPool is
+/// designed to assist with handling these different amounts of different currencies
+pub struct AmountPool {
+    pool: Vec<Amount>,
+}
+
+impl AddAssign<&Amount> for AmountPool {
+    fn add_assign(&mut self, amount: &Amount) {
+        let mut iter = self.pool.iter_mut();
+        match iter.find(|a| a.symbol == amount.symbol) {
+            Some(a) => {
+                *a += amount;
+            },
+            None => {
+                self.pool.push(amount.clone());
+            }
+        }
+    }
+}
+
+impl AmountPool {
+    pub fn size(&self) -> usize {
+        self.pool.len()
+    }
+}
+
+impl From<Amount> for AmountPool {
+    fn from(amount: Amount) -> Self {
+        Self {
+            pool: vec![amount]
+        }
+    }
+}
+
+impl fmt::Display for AmountPool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.size() {
+            0 => Ok(()),
+            1 => write!(f, "{}", self.pool[0].display()),
+            _ => {
+                for a in self.pool.iter() {
+                    write!(f, "\n\t{}", a.display())?;
+                }
+
+                Ok(())
+            }
+        }
     }
 }

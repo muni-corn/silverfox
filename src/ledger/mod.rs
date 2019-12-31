@@ -1,15 +1,25 @@
-use crate::ledger::errors::*;
+use crate::ledger::amount::AmountPool;
+use errors::*;
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
+pub mod account;
 pub mod amount;
 pub mod entry;
+pub mod envelope;
+pub mod errors;
+pub mod posting;
+pub mod utils;
 
 pub type Account = account::Account;
+pub type Amount = amount::Amount;
 pub type Entry = entry::Entry;
+pub type Envelope = envelope::Envelope;
+pub type Posting = posting::Posting;
 
 pub struct Ledger {
     entries: Vec<Entry>,
@@ -164,8 +174,14 @@ impl Ledger {
     }
 
     fn parse_entry(&mut self, chunk: &str) -> Result<(), MvelopesError> {
-        match Entry::parse(chunk, &self.date_format, self.decimal_symbol) {
+        match Entry::parse(chunk, &self.date_format, self.decimal_symbol, &self.accounts) {
             Ok(entry) => {
+                println!("{}", entry);
+                for (_, account) in self.accounts.iter_mut() {
+                    if let Err(e) = account.process_entry_for_envelopes(&entry) {
+                        return Err(MvelopesError::from(e))
+                    }
+                }
                 self.entries.push(entry);
                 Ok(())
             }
@@ -182,9 +198,73 @@ impl Ledger {
             Err(e) => Err(MvelopesError::from(e)),
         }
     }
+
+    pub fn display_flat_balance(&self) -> Result<(), MvelopesError> {
+        let totals_map = match self.get_totals() {
+            Ok(m) => m,
+            Err(e) => return Err(e)
+        };
+
+        let mut totals_vec = totals_map.iter().collect::<Vec<(&String, &AmountPool)>>();
+        totals_vec.sort_by(|a, b| a.0.cmp(b.0));
+
+        for pair in totals_vec.iter() {
+            println!("{:35}    {}", pair.0, pair.1);
+        }
+
+        Ok(())
+    }
+
+    fn get_totals(&self) -> Result<HashMap<String, AmountPool>, MvelopesError> {
+        // map for account names to amount pools
+        let mut totals_map: HashMap<String, AmountPool> = HashMap::new();
+
+        // read: for each posting in the ledger, add its amount to its account in totals_map
+        for entry in &self.entries {
+            for posting in &entry.postings {
+                let posting_amount = posting.get_amount();
+                let posting_account = posting.get_account();
+                // if the account key exists, just add to it. if it doesn't exist, insert a new key
+                // with the amount
+                match totals_map.get_mut(posting_account) {
+                    Some(pool) => {
+                        if let Some(a) = posting_amount {
+                            *pool += a;
+                        } else { 
+                            match entry.get_blank_amount() {
+                                Ok(o) => {
+                                    if let Some(b) = o {
+                                        *pool += &b;
+                                    }
+                                },
+                                Err(e) => return Err(MvelopesError::from(e))
+                            }
+                        }
+                    },
+                    None => {
+                        // if the posting amount exists, set an AmountPool from the amount as the
+                        // key's value. otherwise, use an AmountPool from a zero Amount.
+                        if let Some(a) = posting_amount {
+                            totals_map.insert(posting_account.to_owned(), AmountPool::from(a.clone()));
+                        } else {
+                            totals_map.insert(posting_account.to_owned(), AmountPool::from(Amount::zero()));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(totals_map)
+    }
+
+    pub fn display_envelopes(&self) {
+        for (_, account) in self.accounts.iter() {
+            account.display_envelopes();
+        }
+    }
 }
 
-impl fmt::Display for Ledger {
+impl fmt::Debug for Ledger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for ent in &self.entries {
             ent.fmt(f)?;

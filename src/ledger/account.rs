@@ -1,4 +1,6 @@
-use crate::ledger::envelope::Envelope;
+use crate::ledger::errors::ProcessingError;
+use crate::ledger::Entry;
+use crate::ledger::Envelope;
 use crate::ledger::errors::ParseError;
 use crate::ledger::utils;
 use std::collections::HashMap;
@@ -34,13 +36,15 @@ impl Account {
         };
 
         let mut envelope_chunk = String::new();
-        for line in lines.skip(1) {
+        for line in lines {
             let trimmed_line = line.trim();
             if trimmed_line.starts_with("expense") || trimmed_line.starts_with("goal") {
-                // add a new envelope
-                let new_envelope =
-                    Envelope::parse(&envelope_chunk, &account.name, decimal_symbol, &date_format)?;
-                account.add_envelope(new_envelope);
+                // add a new envelope, if the chunk isn't blank
+                if !envelope_chunk.trim().is_empty() {
+                    let new_envelope =
+                        Envelope::parse(&envelope_chunk, &account.name, decimal_symbol, &date_format)?;
+                    account.add_envelope(new_envelope);
+                }
 
                 envelope_chunk = String::from(line);
             } else {
@@ -91,6 +95,20 @@ impl Account {
             None => {
                 self.envelopes.insert(envelope.get_name().to_string(), envelope);
             }
+        }
+    }
+
+    pub fn process_entry_for_envelopes(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
+        for (_, envelope) in self.envelopes.iter_mut() {
+            envelope.process_entry(entry)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn display_envelopes(&self) {
+        for (_, envelope) in self.envelopes.iter() {
+            println!("{}", envelope);
         }
     }
 }
