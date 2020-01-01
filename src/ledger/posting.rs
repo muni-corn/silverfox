@@ -1,7 +1,7 @@
 use crate::ledger::errors::*;
 use crate::ledger::utils;
-use crate::ledger::{Amount, Account};
-use std::collections::HashMap;
+use crate::ledger::{Amount};
+use std::collections::HashSet;
 use std::fmt;
 
 #[derive(Clone)]
@@ -34,7 +34,7 @@ impl Posting {
         }
     }
 
-    pub fn parse(line: &str, decimal_symbol: char, accounts: &HashMap<String, Account>) -> Result<Self, MvelopesError> {
+    pub fn parse(line: &str, decimal_symbol: char, accounts: &HashSet<&String>) -> Result<Self, MvelopesError> {
         let mut posting = Self::blank();
 
         // remove comments and other impurities
@@ -44,7 +44,6 @@ impl Posting {
         let amount_tokens: Vec<&str>;
         match tokens[0] {
             "envelope" => {
-                println!("parsing envelope posting: {}", line);
                 posting.account = tokens[1].to_string();
                 posting.envelope_name = Some(tokens[2].to_string());
                 amount_tokens = tokens[3..].to_vec();
@@ -238,8 +237,8 @@ impl Posting {
         }
     }
 
-    fn validate(&self, accounts: &HashMap<String, Account>) -> Result<(), ValidationError> {
-        if !accounts.contains_key(&self.account) {
+    fn validate(&self, accounts: &HashSet<&String>) -> Result<(), ValidationError> {
+        if !accounts.contains(&self.account) {
             let message = format!("the account `{}` is not defined in your journal", self.account);
             Err(ValidationError::new().set_message(message.as_str()))
         } else {

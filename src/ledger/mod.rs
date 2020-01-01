@@ -174,7 +174,7 @@ impl Ledger {
     }
 
     fn parse_entry(&mut self, chunk: &str) -> Result<(), MvelopesError> {
-        match Entry::parse(chunk, &self.date_format, self.decimal_symbol, &self.accounts) {
+        match Entry::parse(chunk, &self.date_format, self.decimal_symbol, &self.accounts.keys().collect()) {
             Ok(entry) => {
                 for (_, account) in self.accounts.iter_mut() {
                     if let Err(e) = account.process_entry_for_envelopes(&entry) {
