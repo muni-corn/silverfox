@@ -1,8 +1,8 @@
 use crate::ledger::errors::*;
 use crate::ledger::utils;
 use crate::ledger::Posting;
-use crate::ledger::{Amount, Account};
-use std::collections::{HashSet, HashMap};
+use crate::ledger::Amount;
+use std::collections::HashSet;
 use std::fmt;
 
 pub enum EntryStatus {
@@ -51,7 +51,7 @@ impl Entry {
         chunk: &str,
         date_format: &str,
         decimal_symbol: char,
-        accounts: &HashMap<String, Account>,
+        accounts: &HashSet<&String>,
     ) -> Result<Self, MvelopesError> {
         let trimmed_chunk = chunk.trim();
         if trimmed_chunk.is_empty() {
@@ -311,5 +311,20 @@ impl Entry {
 impl fmt::Display for Entry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.display())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ENTRY_STR: &'static str = 
+        "2019/08/02 * Groceries [Grocery store]
+            accounts:assets:checking -50
+            expenses:groceries        50";
+
+    #[test]
+    fn test_parse() {
+        Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', accounts);
     }
 }

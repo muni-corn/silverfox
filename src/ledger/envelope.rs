@@ -560,7 +560,7 @@ impl Envelope {
         let width_f = width as f64;
         let progress = (amt.mag * width_f / self.amount.mag).min(width_f).max(0.0) as usize;
         let trough = width - progress;
-        format!("[{}{}]", "=".repeat(progress), " ".repeat(trough))
+        format!("|{}{}|", "═".repeat(progress), " ".repeat(trough))
     }
 
     fn make_text_progress(&self, amt: &Amount) -> String {
@@ -735,28 +735,40 @@ impl Envelope {
             }
         }
     }
+
+    pub fn get_type(&self) -> &EnvelopeType {
+        &self.envelope_type
+    }
 }
 
 impl fmt::Display for Envelope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         let progress_bar_width = 40;
 
-        // get now stuff
-        let now_text = self.make_text_progress(&self.now_amount);
-        let now_bar = self.make_bar(&self.now_amount, progress_bar_width);
-
         // get next stuff
+        let next_display = Amount {
+            mag: self.next_amount.mag + self.now_amount.mag.min(0.0), // if now amount is below zero, subtract overflow from the next amount
+            symbol: self.next_amount.symbol.clone(),
+        };
         let next_prelude = if let Some(d) = self.get_next_due_date() {
             format!("next (on {})", d)
         } else {
             format!("next")
         };
-        let next_text = self.make_text_progress(&self.next_amount);
-        let next_bar = self.make_bar(&self.next_amount, 40);
+        let next_text = self.make_text_progress(&next_display);
+        let next_bar = self.make_bar(&next_display, 40);
 
-        write!(f, "{}\n", self.name)?;
-        write!(f, "\t{:20} {:>20} {}\n", "now", now_text, now_bar)?;
-        write!(f, "\t{:20} {:>20} {}\n", next_prelude, next_text, next_bar)
+        // get now stuff
+        let now_display = Amount {
+            mag: self.now_amount.mag.max(0.0), // will only be as small as zero (anything negative is taken from 'now')
+            symbol: self.now_amount.symbol.clone(),
+        };
+        let now_text = self.make_text_progress(&now_display);
+        let now_bar = self.make_bar(&now_display, progress_bar_width);
+
+        write!(f, "    {}\n", self.name)?;
+        write!(f, "      {:20} {:>20} {}\n", "now", now_text, now_bar)?;
+        write!(f, "      {:20} {:>20} {}", next_prelude, next_text, next_bar)
     }
 }
 
