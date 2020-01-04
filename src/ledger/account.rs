@@ -107,7 +107,8 @@ impl Account {
         }
     }
 
-    pub fn process_entry_for_envelopes(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
+    /// Processes the Entry by looking for any changes to envelope amounts and applying them
+    pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
         for (_, envelope) in self.expense_envelopes.iter_mut() {
             envelope.process_entry(entry)?;
         }

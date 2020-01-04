@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, SubAssign, Neg};
+use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use crate::ledger::errors::*;
 use std::fmt;
 
@@ -98,23 +98,23 @@ impl fmt::Display for Amount {
 }
 
 /// + operator
-impl Add<&Amount> for Amount {
+impl Add for Amount {
     type Output = Self;
 
-    fn add(mut self, rhs: &Amount) -> Self::Output {
+    fn add(self, mut rhs: Amount) -> Self::Output {
         if self.symbol != rhs.symbol {
             panic!("tried to add two amounts with differing symbols: {} and {}", self, rhs);
         }
 
-        self.mag += rhs.mag;
+        rhs.mag += self.mag;
 
-        self
+        rhs
     }
 }
 
 /// += operator
-impl AddAssign<&Amount> for Amount {
-    fn add_assign(&mut self, rhs: &Amount) {
+impl AddAssign for Amount {
+    fn add_assign(&mut self, rhs: Amount) {
         if self.symbol != rhs.symbol {
             panic!("tried to add two amounts with differing symbols: {} and {}", self, rhs);
         }
@@ -123,9 +123,18 @@ impl AddAssign<&Amount> for Amount {
     }
 }
 
+/// - operator
+impl Sub for Amount {
+    type Output = Self;
+
+    fn sub(self, rhs: Amount) -> Self::Output {
+        self.add(-rhs)
+    }
+}
+
 /// -= operator
-impl SubAssign<&Amount> for Amount {
-    fn sub_assign(&mut self, rhs: &Amount) {
+impl SubAssign for Amount {
+    fn sub_assign(&mut self, rhs: Amount) {
         if self.symbol != rhs.symbol {
             panic!("tried to operate on two amounts with differing symbols: {} and {}", self, rhs);
         }
@@ -152,8 +161,8 @@ pub struct AmountPool {
     pool: Vec<Amount>,
 }
 
-impl AddAssign<&Amount> for AmountPool {
-    fn add_assign(&mut self, amount: &Amount) {
+impl AddAssign<Amount> for AmountPool {
+    fn add_assign(&mut self, amount: Amount) {
         let mut iter = self.pool.iter_mut();
         match iter.find(|a| a.symbol == amount.symbol) {
             Some(a) => {

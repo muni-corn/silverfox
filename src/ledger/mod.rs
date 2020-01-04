@@ -177,7 +177,7 @@ impl Ledger {
         match Entry::parse(chunk, &self.date_format, self.decimal_symbol, &self.accounts.keys().collect()) {
             Ok(entry) => {
                 for (_, account) in self.accounts.iter_mut() {
-                    if let Err(e) = account.process_entry_for_envelopes(&entry) {
+                    if let Err(e) = account.process_entry(&entry) {
                         return Err(MvelopesError::from(e))
                     }
                 }
@@ -228,12 +228,12 @@ impl Ledger {
                 match totals_map.get_mut(posting_account) {
                     Some(pool) => {
                         if let Some(a) = posting_amount {
-                            *pool += a;
+                            *pool += a.clone();
                         } else { 
                             match entry.get_blank_amount() {
                                 Ok(o) => {
                                     if let Some(b) = o {
-                                        *pool += &b;
+                                        *pool += b;
                                     }
                                 },
                                 Err(e) => return Err(MvelopesError::from(e))
@@ -260,6 +260,10 @@ impl Ledger {
         for (_, account) in self.accounts.iter() {
             account.display_envelopes();
         }
+    }
+
+    fn fill_envelopes(&self) {
+
     }
 }
 
