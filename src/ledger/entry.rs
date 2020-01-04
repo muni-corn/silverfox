@@ -226,7 +226,7 @@ impl Entry {
                 // `posting` doesn't have a blank amount)
                 for posting in &self.postings {
                     if let Some(a) = posting.get_amount() {
-                        blank_amount -= a;
+                        blank_amount -= a.clone();
                     }
                 }
 
@@ -305,6 +305,10 @@ impl Entry {
 
     pub fn has_blank_posting(&self) -> bool {
         self.has_blank_posting
+    }
+
+    pub fn contains_account_posting(&self, account_name: &str) -> bool {
+        self.postings.iter().find(|&p| p.get_account() == account_name).is_some()
     }
 }
 

@@ -25,7 +25,11 @@ pub struct Envelope {
     /// The amount saved up now.
     now_amount: Amount,
 
+    /// The account this Envelope pertains to
     account: String,
+
+    /// The last date at which this envelope was affected
+    last_transaction_date: NaiveDate,
 }
 
 pub enum EnvelopeType {
@@ -405,6 +409,7 @@ impl Envelope {
             now_amount: Amount::zero(),
             account: String::from(account_name),
             starting_date: starting_date,
+            last_transaction_date: NaiveDate::from_ymd(0, 1, 1),
         };
         Ok(envelope)
     }
@@ -572,7 +577,7 @@ impl Envelope {
     }
 
     /// Reads the Entry and makes changes to the envelope's balances (depending on accounts, dates,
-    /// and amounts)
+    /// and amounts), as well as the envelope's last_entry_date
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
         if entry.has_envelope_postings() {
             self.process_manual_postings(entry)
@@ -633,7 +638,7 @@ impl Envelope {
         // check
         if self_account_count < 1 || auto_account_count < 1 {
             // if inference can't continue because of lack of the proper accounts, that's okay
-            return Ok(())
+            return Ok(());
         }
 
         // declare sums
@@ -645,7 +650,6 @@ impl Envelope {
             mag: 0.0,
             symbol: self.amount.symbol.clone(),
         };
-
 
         // calculate sums for envelope
         for posting in &entry.postings {
@@ -668,7 +672,13 @@ impl Envelope {
                 // if this envelope's currency isn't blank (native), then nothing can happen here
                 // because the currency can't be converted to native
                 if self.amount.symbol.is_some() {
-                    return Err(ProcessingError::new().set_message("the envelope `{}` in `{}` was set up with a currency that isn't your native currency. furthermore, this entry contains postings with accounts that relate to the envelope, but mvelopes could not move money automatically because the postings use currencies that cannot be converted to the currency of the envelope. hopefully that all makes sense!"));
+                    // can't infer because the envelope has a foreign currency, and this posting
+                    // can't be converted to it
+                    let message = format!("the envelope `{}` in `{}` was set up with a currency that isn't your native currency. furthermore, this entry contains postings with accounts that relate to the envelope, but mvelopes could not move money automatically because the postings use currencies that cannot be converted to the currency of the envelope. hopefully that all makes sense!", self.name, self.account);
+                    return Err(ProcessingError {
+                        message: Some(message),
+                        context: Some(entry.display()),
+                    });
                 } else {
                     match posting.get_native_value() {
                         Some(m) => {
@@ -685,9 +695,9 @@ impl Envelope {
             }
 
             if posting.get_account() == &self.account {
-                self_account_postings_sum += &amount_to_add;
+                self_account_postings_sum += amount_to_add;
             } else if self.auto_accounts.contains(posting.get_account()) {
-                auto_postings_sum += &amount_to_add;
+                auto_postings_sum += amount_to_add;
             }
         }
 
@@ -696,22 +706,24 @@ impl Envelope {
             .mag
             .min(self_account_postings_sum.mag.abs());
 
-        // if the self_account_postings_sum is less than zero, then the amount we apply should be
-        // negative
-        let mag_to_apply = if self_account_postings_sum.mag < 0.0 {
-            -abs_min_mag
-        } else {
-            abs_min_mag
-        };
+        // only apply an amount if the magnitude to add is worth something
+        if abs_min_mag != 0.0 {
+            // if the self_account_postings_sum is less than zero, then the amount we apply should be
+            // negative
+            let mag_to_apply = if self_account_postings_sum.mag < 0.0 {
+                -abs_min_mag
+            } else {
+                abs_min_mag
+            };
 
-        // apply the amount
-        self.apply_amount(
-            &Amount {
-                mag: mag_to_apply,
-                symbol: self.amount.symbol.clone(),
-            },
-            entry.get_date(),
-        );
+            self.apply_amount(
+                &Amount {
+                    mag: mag_to_apply,
+                    symbol: self.amount.symbol.clone(),
+                },
+                entry.get_date(),
+            );
+        }
 
         // done!
         Ok(())
@@ -720,24 +732,87 @@ impl Envelope {
     fn apply_amount(&mut self, amount: &Amount, date: &NaiveDate) {
         if amount.mag < 0.0 {
             // take from an envelope. always take from the 'now' envelope
-            self.now_amount += &amount;
+            self.now_amount += amount.clone();
         } else if amount.mag > 0.0 {
             // add to an envelope, depending on the date
             if let Some(d) = self.freq.get_last_due_date() {
                 if date < &d {
                     // anything before the last due date is ready
-                    self.now_amount += &amount;
+                    self.now_amount += amount.clone();
                 } else {
                     // otherwise, anything after the last due date is for the next due
                     // date
-                    self.next_amount += &amount
+                    self.next_amount += amount.clone()
+                }
+            }
+        }
+
+        self.last_transaction_date = *date;
+    }
+
+    pub fn get_type(&self) -> &EnvelopeType {
+        &self.envelope_type
+    }
+
+    pub fn get_fill_amount(&self, account_available_amount: &Amount) -> Amount {
+        assert_eq!(account_available_amount.symbol, self.amount.symbol);
+
+        // some convenience variables
+        let symbol = &self.amount.symbol;
+        let today = Local::today().naive_utc();
+        let next_due_date_opt = self.get_next_due_date();
+        let zero_amount = Amount {
+            mag: 0.0,
+            symbol: symbol.clone()
+        };
+
+        if self.last_transaction_date == today {
+            zero_amount
+        } else {
+            match self.funding {
+                FundingMethod::Manual => {
+                    // no automatic movement
+                    zero_amount
+                },
+                FundingMethod::Aggressive => {
+                    if next_due_date_opt.is_some() {
+                        let mag = self.amount.mag.min(account_available_amount.mag);
+
+                        Amount {
+                            mag,
+                            symbol: symbol.clone(),
+                        }
+                    } else {
+                        // if no next due date, no amount
+                        zero_amount
+                    }
+                },
+                FundingMethod::Conservative => {
+                    match next_due_date_opt {
+                        Some(next_due_date) => {
+                            // get days remaining, and remaining amount
+                            let date_diff = next_due_date.signed_duration_since(today);
+                            let days_remaining = date_diff.num_days();
+                            let mag = self.get_remaining_next_amount().mag / days_remaining as f64;
+
+                            // return that
+                            Amount {
+                                mag,
+                                symbol: symbol.clone()
+                            }
+                        },
+                        None => {
+                            // if no next due date, no amount
+                            zero_amount
+                        }
+                    }
                 }
             }
         }
     }
 
-    pub fn get_type(&self) -> &EnvelopeType {
-        &self.envelope_type
+    fn get_remaining_next_amount(&self) -> Amount {
+        return self.amount.clone() - self.next_amount.clone()
     }
 }
 
@@ -768,7 +843,11 @@ impl fmt::Display for Envelope {
 
         write!(f, "    {}\n", self.name)?;
         write!(f, "      {:20} {:>20} {}\n", "now", now_text, now_bar)?;
-        write!(f, "      {:20} {:>20} {}", next_prelude, next_text, next_bar)
+        write!(
+            f,
+            "      {:20} {:>20} {}",
+            next_prelude, next_text, next_bar
+        )
     }
 }
 
