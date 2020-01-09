@@ -310,22 +310,25 @@ impl Entry {
                     posting_amount.symbol.clone()
                 },
                 None => {
-                    match self.get_blank_amount() {
-                        Ok(blank_amount_opt) => {
-                            match blank_amount_opt {
-                                Some(blank_amount) => {
-                                    blank_amount.symbol
-                                },
-                                None => {
-                                    unreachable!()
-                                }
-                            }
-                        },
-                        Err(_) => {
-                            // assume true?
-                            return true
-                        }
-                    }
+                    return true
+                    // assert true? this code creates a stack overflow:
+                    //
+                    // match self.get_blank_amount() {
+                    //     Ok(blank_amount_opt) => {
+                    //         match blank_amount_opt {
+                    //             Some(blank_amount) => {
+                    //                 blank_amount.symbol
+                    //             },
+                    //             None => {
+                    //                 unreachable!()
+                    //             }
+                    //         }
+                    //     },
+                    //     Err(_) => {
+                    //         // assume true?
+                    //         return true
+                    //     }
+                    // }
                 }
             };
 
@@ -336,22 +339,26 @@ impl Entry {
                         posting_amount.symbol.clone()
                     },
                     None => {
-                        match self.get_blank_amount() {
-                            Ok(blank_amount_opt) => {
-                                match blank_amount_opt {
-                                    Some(blank_amount) => {
-                                        blank_amount.symbol
-                                    },
-                                    None => {
-                                        unreachable!()
-                                    }
-                                }
-                            },
-                            Err(_) => {
-                                // assume true?
-                                return true
-                            }
-                        }
+                        return true
+                        // assert true? this code creates a stack overflow, not to mention it was
+                        // copied from above:
+                        //
+                        // match self.get_blank_amount() {
+                        //     Ok(blank_amount_opt) => {
+                        //         match blank_amount_opt {
+                        //             Some(blank_amount) => {
+                        //                 blank_amount.symbol
+                        //             },
+                        //             None => {
+                        //                 unreachable!()
+                        //             }
+                        //         }
+                        //     },
+                        //     Err(_) => {
+                        //         // assume true?
+                        //         return true
+                        //     }
+                        // }
                     }
                 };
 
