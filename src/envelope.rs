@@ -1,8 +1,9 @@
-use crate::ledger::errors::ParseError;
-use crate::ledger::errors::ProcessingError;
-use crate::ledger::utils;
-use crate::ledger::Amount;
-use crate::ledger::Entry;
+use crate::amount::{Amount, AmountPool};
+use crate::entry::Entry;
+use crate::errors::ParseError;
+use crate::errors::ProcessingError;
+use crate::utils;
+use crate::posting::Posting;
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
 use std::cmp::Ordering;
@@ -105,9 +106,9 @@ impl Frequency {
             // remember: the `starting` clause is already trimmed
             let what = &s["every other ".len()..];
 
-            if let Some(w) = Self::parse_weekday(what) {
+            if Self::parse_weekday(what).is_some() {
                 Ok(Self::Biweekly(starting_date.unwrap()))
-            } else if let Some(d) = Self::parse_day_of_month(what) {
+            } else if Self::parse_day_of_month(what).is_some() {
                 Ok(Self::Bimonthly(starting_date.unwrap()))
             } else {
                 Err(ParseError {
@@ -127,10 +128,10 @@ impl Frequency {
             } else if what == "year" {
                 match starting_date {
                     Some(d) => Ok(Self::Annually(d)),
-                    None => Err(ParseError::new().set_context(s).set_message("envelopes due annually require a `starting` date so that mvelopes knows which day of the year the envelope is due"))
+                    None => Err(ParseError::default().set_context(s).set_message("envelopes due annually require a `starting` date so that mvelopes knows which day of the year the envelope is due"))
                 }
             } else {
-                Err(ParseError::new()
+                Err(ParseError::default()
                     .set_context(s)
                     .set_message("invalid frequency"))
             }
@@ -178,8 +179,8 @@ impl Frequency {
             Some(next_date) => match self {
                 Self::Weekly(_) => Some(next_date - chrono::Duration::days(7)),
                 Self::Biweekly(_) => Some(next_date - chrono::Duration::days(14)),
-                Self::Monthly(_) => Some(Self::subtract_months(&next_date, 1)),
-                Self::Bimonthly(_) => Some(Self::subtract_months(&next_date, 2)),
+                Self::Monthly(_) => Some(Self::subtract_months(next_date, 1)),
+                Self::Bimonthly(_) => Some(Self::subtract_months(next_date, 2)),
                 Self::Annually(d) => Some(d.with_year(d.year() - 1).unwrap()),
                 _ => None,
             },
@@ -191,7 +192,7 @@ impl Frequency {
         }
     }
 
-    fn subtract_months(date: &NaiveDate, num: i32) -> NaiveDate {
+    fn subtract_months(date: NaiveDate, num: i32) -> NaiveDate {
         let mut new_month0 = date.month0() as i32 - num;
         let mut new_year = date.year();
 
@@ -278,7 +279,7 @@ impl Frequency {
     /// Returns the last day of the date's month
     fn get_last_date_of_month(date: NaiveDate) -> NaiveDate {
         NaiveDate::from_ymd_opt(date.year(), date.month() + 1, 1)
-            .unwrap_or(NaiveDate::from_ymd(date.year() + 1, 1, 1))
+            .unwrap_or_else(|| NaiveDate::from_ymd(date.year() + 1, 1, 1))
             .pred()
     }
 
@@ -292,30 +293,23 @@ impl Frequency {
         if due_date_this_month > today {
             due_date_this_month
         } else {
-            // this modulus operation is a little confusing; we have to subtract 1
-            // first to make the month zero-based, then add the 2 months, mod so that
-            // the zero-based month wraps into next year (if needed), then add
-            // 1 so that the month is one-based again
-            let next_month_ordinal = ((today.month() - 1 + 2) % 12) + 1;
+            // this modulus operation is a little confusing; we have to make sure the month is
+            // zero-based, then add 2 months, mod so that the zero-based month wraps into next year
+            // (if needed), then add 1 so that the month is one-based again
+            let next_month_ordinal = ((today.month0() + 2) % 12) + 1;
 
             // this is kinda confusing too, but only adding 1 to today.month() will
             // lead to this month's last date. to get the last date of next month, we
             // have to add 2 to today.month()
             let last_date_next_month = NaiveDate::from_ymd_opt(today.year(), today.month() + 2, 1)
-                .unwrap_or(NaiveDate::from_ymd(today.year() + 1, next_month_ordinal, 1))
+                .unwrap_or_else(|| NaiveDate::from_ymd(today.year() + 1, next_month_ordinal, 1))
                 .pred();
 
             // return the date with the year and month of `last_date_next_month`, and try with the
             // day provided. if the date with `day` doesn't work, use `last_date_next_month`
-            let due_date_next_month = today
-                .with_year(last_date_next_month.year())
-                .unwrap_or(last_date_next_month)
-                .with_month(last_date_next_month.month())
-                .unwrap_or(last_date_next_month)
+            last_date_next_month
                 .with_day(day)
-                .unwrap_or(last_date_next_month);
-
-            due_date_next_month
+                .unwrap_or(last_date_next_month)
         }
     }
 }
@@ -335,7 +329,7 @@ impl Envelope {
         let mut envelope = if let Some(l) = lines.next() {
             Self::from_header(l, date_format, account_name)?
         } else {
-            let err = ParseError::new()
+            let err = ParseError::default()
                 .set_context(&chunk)
                 .set_message("envelope header can't be parsed because it doesn't exist");
             return Err(err);
@@ -352,8 +346,6 @@ impl Envelope {
     pub fn get_name(&self) -> &str {
         &self.name
     }
-
-    pub fn merge(&mut self, other: &Envelope) {}
 
     /// Returns the starting struct of an Envelope. The string passed in can include ledger
     /// comments.
@@ -408,7 +400,7 @@ impl Envelope {
             next_amount: Amount::zero(),
             now_amount: Amount::zero(),
             account: String::from(account_name),
-            starting_date: starting_date,
+            starting_date,
             last_transaction_date: NaiveDate::from_ymd(0, 1, 1),
         };
         Ok(envelope)
@@ -434,7 +426,7 @@ impl Envelope {
                         "the property `{}` to an envelope (`{}` in {}) is blank",
                         line_split[0], self.name, account_name
                     );
-                    let err = ParseError::new().set_message(&message);
+                    let err = ParseError::default().set_message(&message);
                     return Err(err);
                 }
             }
@@ -465,7 +457,7 @@ impl Envelope {
                         }
                     }
                     _ => {
-                        return Err(ParseError::new().set_message(
+                        return Err(ParseError::default().set_message(
                             format!("the `{}` property isn't understood by mvelopes", key).as_str(),
                         ))
                     }
@@ -482,7 +474,7 @@ impl Envelope {
         match arg_count.cmp(&1) {
             Ordering::Greater => {
                 // more than one token? account probably has spaces in it
-                Err(ParseError::new().set_message("remember that account names can't contain spaces; this `for` property couldn't be parsed correctly").set_context(s))
+                Err(ParseError::default().set_message("remember that account names can't contain spaces; this `for` property couldn't be parsed correctly").set_context(s))
             }
             Ordering::Less => {
                 // something less than one token? that's an issue
@@ -521,7 +513,7 @@ impl Envelope {
                     frequency_index = i + " due ".len();
                 },
                 // if that's not found, then pbpbpbpbpbpbpbpbpbp
-                None => return Err(ParseError::new().set_message("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date").set_context(clean_header))
+                None => return Err(ParseError::default().set_message("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date").set_context(clean_header))
             }
         }
 
@@ -572,14 +564,10 @@ impl Envelope {
         format!("{} / {}", amt, self.amount)
     }
 
-    pub fn get_next_due_date(&self) -> Option<chrono::NaiveDate> {
-        self.freq.get_next_due_date()
-    }
-
     /// Reads the Entry and makes changes to the envelope's balances (depending on accounts, dates,
     /// and amounts), as well as the envelope's last_entry_date
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
-        if entry.has_envelope_postings() {
+        if entry.has_envelope_posting() {
             self.process_manual_postings(entry)
         } else {
             self.infer(entry)
@@ -607,7 +595,7 @@ impl Envelope {
                         },
                     };
 
-                    self.apply_amount(&amount, entry.get_date());
+                    self.apply_amount(&amount, *entry.get_date());
                 }
             }
         }
@@ -627,7 +615,7 @@ impl Envelope {
         let mut auto_account_count = 0;
 
         // count
-        for posting in &entry.postings {
+        for posting in entry.get_postings() {
             if *posting.get_account() == self.account {
                 self_account_count += 1;
             } else if self.auto_accounts.contains(posting.get_account()) {
@@ -652,7 +640,7 @@ impl Envelope {
         };
 
         // calculate sums for envelope
-        for posting in &entry.postings {
+        for posting in entry.get_postings() {
             let mut amount_to_add = match posting.get_amount() {
                 Some(a) => a.clone(),
                 None => match entry.get_blank_amount() {
@@ -685,7 +673,7 @@ impl Envelope {
                             amount_to_add.mag = m;
                         },
                         None => {
-                            return Err(ProcessingError::new()
+                            return Err(ProcessingError::default()
                                 .set_message("mvelopes wants to infer how much money to move to or from an envelope, but can't; you'll need to specify a manual envelope posting here with the correct amount")
                                 .set_context(entry.display().as_str())
                             )
@@ -721,7 +709,7 @@ impl Envelope {
                     mag: mag_to_apply,
                     symbol: self.amount.symbol.clone(),
                 },
-                entry.get_date(),
+                *entry.get_date(),
             );
         }
 
@@ -729,14 +717,14 @@ impl Envelope {
         Ok(())
     }
 
-    fn apply_amount(&mut self, amount: &Amount, date: &NaiveDate) {
+    fn apply_amount(&mut self, amount: &Amount, date: NaiveDate) {
         if amount.mag < 0.0 {
             // take from an envelope. always take from the 'now' envelope
             self.now_amount += amount.clone();
         } else if amount.mag > 0.0 {
             // add to an envelope, depending on the date
             if let Some(d) = self.freq.get_last_due_date() {
-                if date < &d {
+                if date < d {
                     // anything before the last due date is ready
                     self.now_amount += amount.clone();
                 } else {
@@ -747,14 +735,14 @@ impl Envelope {
             }
         }
 
-        self.last_transaction_date = *date;
+        self.last_transaction_date = date;
     }
 
     pub fn get_type(&self) -> &EnvelopeType {
         &self.envelope_type
     }
 
-    pub fn get_fill_amount(&self, account_available_amount: &Amount) -> Amount {
+    fn get_fill_amount(&self, account_available_amount: &Amount) -> Amount {
         assert_eq!(account_available_amount.symbol, self.amount.symbol);
 
         // some convenience variables
@@ -763,7 +751,7 @@ impl Envelope {
         let next_due_date_opt = self.get_next_due_date();
         let zero_amount = Amount {
             mag: 0.0,
-            symbol: symbol.clone()
+            symbol: symbol.clone(),
         };
 
         if self.last_transaction_date == today {
@@ -773,7 +761,7 @@ impl Envelope {
                 FundingMethod::Manual => {
                     // no automatic movement
                     zero_amount
-                },
+                }
                 FundingMethod::Aggressive => {
                     if next_due_date_opt.is_some() {
                         let mag = self.amount.mag.min(account_available_amount.mag);
@@ -786,21 +774,23 @@ impl Envelope {
                         // if no next due date, no amount
                         zero_amount
                     }
-                },
+                }
                 FundingMethod::Conservative => {
                     match next_due_date_opt {
                         Some(next_due_date) => {
                             // get days remaining, and remaining amount
                             let date_diff = next_due_date.signed_duration_since(today);
                             let days_remaining = date_diff.num_days();
-                            let mag = self.get_remaining_next_amount().mag / days_remaining as f64;
+                            let mag = (self.get_remaining_next_amount().mag
+                                / days_remaining as f64)
+                                .min(account_available_amount.mag);
 
                             // return that
                             Amount {
                                 mag,
-                                symbol: symbol.clone()
+                                symbol: symbol.clone(),
                             }
-                        },
+                        }
                         None => {
                             // if no next due date, no amount
                             zero_amount
@@ -811,8 +801,40 @@ impl Envelope {
         }
     }
 
+    /// Returns a posting with this Envelope's fill amount for the day. `account` is passed so that
+    /// the program can determine how much money we have available.
+    pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> Posting {
+        let amount = self.get_fill_amount(&account_available_value.only(&self.amount.symbol));
+
+        Posting::new_envelope_posting(self.account.clone(), amount, self.name.clone())
+    }
+
     fn get_remaining_next_amount(&self) -> Amount {
-        return self.amount.clone() - self.next_amount.clone()
+        self.amount.clone() - self.next_amount.clone()
+    }
+
+    pub fn get_next_amount(&self) -> &Amount {
+        &self.next_amount
+    }
+
+    pub fn get_now_amount(&self) -> &Amount {
+        &self.now_amount
+    }
+
+    fn get_next_due_date(&self) -> Option<NaiveDate> {
+        let starting_date = if let Some(d) = self.starting_date {
+            d
+        } else {
+            return self.freq.get_next_due_date()
+        };
+
+        let freq_next_date = if let Some(d) = self.freq.get_next_due_date() {
+            d
+        } else {
+            return Some(starting_date)
+        };
+
+        Some(starting_date.max(freq_next_date))
     }
 }
 
@@ -828,7 +850,7 @@ impl fmt::Display for Envelope {
         let next_prelude = if let Some(d) = self.get_next_due_date() {
             format!("next (on {})", d)
         } else {
-            format!("next")
+            "next".to_string()
         };
         let next_text = self.make_text_progress(&next_display);
         let next_bar = self.make_bar(&next_display, 40);
@@ -841,8 +863,8 @@ impl fmt::Display for Envelope {
         let now_text = self.make_text_progress(&now_display);
         let now_bar = self.make_bar(&now_display, progress_bar_width);
 
-        write!(f, "    {}\n", self.name)?;
-        write!(f, "      {:20} {:>20} {}\n", "now", now_text, now_bar)?;
+        writeln!(f, "    {}", self.name)?;
+        writeln!(f, "      {:20} {:>20} {}", "now", now_text, now_bar)?;
         write!(
             f,
             "      {:20} {:>20} {}",

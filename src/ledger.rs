@@ -1,27 +1,18 @@
-use crate::ledger::amount::AmountPool;
-use errors::*;
+use crate::account::Account;
+use crate::amount::{Amount, AmountPool};
+use crate::entry::Entry;
+use crate::errors::*;
+use crate::utils;
+use crate::posting::Posting;
 use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
-
-pub mod account;
-pub mod amount;
-pub mod entry;
-pub mod envelope;
-pub mod errors;
-pub mod posting;
-pub mod utils;
-
-pub type Account = account::Account;
-pub type Amount = amount::Amount;
-pub type Entry = entry::Entry;
-pub type Envelope = envelope::Envelope;
-pub type Posting = posting::Posting;
+use std::path::{Path, PathBuf};
+use std::fs;
 
 pub struct Ledger {
+    file_path: PathBuf,
     entries: Vec<Entry>,
     date_format: String, // default = "%Y/%m/%d"
     accounts: HashMap<String, Account>,
@@ -33,6 +24,7 @@ impl Ledger {
     /// Returns a blank ledger, with default values for `date_format` and `decimal_symbol`
     fn blank() -> Self {
         Ledger {
+            file_path: PathBuf::new(),
             date_format: String::from("%Y/%m/%d"),
             entries: Vec::<Entry>::new(),
             accounts: HashMap::new(),
@@ -60,6 +52,7 @@ impl Ledger {
     /// Returns a ledger parsed from a file at the `file_path`
     pub fn from_file(file_path: &Path) -> Result<Self, MvelopesError> {
         let mut ledger = Self::blank();
+        ledger.file_path = PathBuf::from(file_path);
 
         if let Err(e) = ledger.add_from_file(file_path) {
             Err(e)
@@ -167,25 +160,53 @@ impl Ledger {
     fn include(&mut self, file: Option<&str>, parent_path: &Path) -> Result<(), MvelopesError> {
         match file {
             None => Err(MvelopesError::from(
-                ParseError::new().set_message("no file provided to an `include` clause"),
+                ParseError::default().set_message("no file provided to an `include` clause"),
             )),
             Some(f) => self.add_from_file(&parent_path.join(f)),
         }
     }
 
     fn parse_entry(&mut self, chunk: &str) -> Result<(), MvelopesError> {
-        match Entry::parse(chunk, &self.date_format, self.decimal_symbol, &self.accounts.keys().collect()) {
-            Ok(entry) => {
-                for (_, account) in self.accounts.iter_mut() {
-                    if let Err(e) = account.process_entry(&entry) {
-                        return Err(MvelopesError::from(e))
-                    }
-                }
-                self.entries.push(entry);
-                Ok(())
-            }
+        match Entry::parse(
+            chunk,
+            &self.date_format,
+            self.decimal_symbol,
+            &self.accounts.keys().collect(),
+        ) {
+            Ok(entry) => self.add_entry(entry),
             Err(e) => Err(e),
         }
+    }
+
+    fn add_entry(&mut self, entry: Entry) -> Result<(), MvelopesError> {
+        for (_, account) in self.accounts.iter_mut() {
+            if let Err(e) = account.process_entry(&entry) {
+                return Err(MvelopesError::from(e));
+            }
+        }
+        self.entries.push(entry);
+        Ok(())
+    }
+
+    /// Appends the entry to the file of the Ledger, then internally adds the Entry itself to the
+    /// Ledger.
+    fn append_entry(&mut self, entry: Entry) -> Result<(), MvelopesError> {
+        let mut file = match fs::File::with_options().append(true).open(&self.file_path) {
+            Ok(f) => {
+                f
+            },
+            Err(e) => {
+                return Err(MvelopesError::from(e))
+            }
+        };
+
+        if let Err(e) = write!(file, "{}", entry.as_parsable(&self.date_format)) {
+            return Err(MvelopesError::from(BasicError {
+                message: format!("{}", e)
+            }))
+        }
+
+        self.add_entry(entry)
     }
 
     fn parse_account(&mut self, chunk: &str) -> Result<(), MvelopesError> {
@@ -193,15 +214,15 @@ impl Ledger {
             Ok(a) => {
                 self.accounts.insert(a.get_name().to_string(), a);
                 Ok(())
-            }
-            Err(e) => Err(MvelopesError::from(e)),
+            },
+            Err(e) => Err(e),
         }
     }
 
     pub fn display_flat_balance(&self) -> Result<(), MvelopesError> {
         let totals_map = match self.get_totals() {
             Ok(m) => m,
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         };
 
         let mut totals_vec = totals_map.iter().collect::<Vec<(&String, &AmountPool)>>();
@@ -214,13 +235,14 @@ impl Ledger {
         Ok(())
     }
 
+    // TODO This can be rewritten, since totals are accounted for within the Account struct
     fn get_totals(&self) -> Result<HashMap<String, AmountPool>, MvelopesError> {
         // map for account names to amount pools
         let mut totals_map: HashMap<String, AmountPool> = HashMap::new();
 
         // read: for each posting in the ledger, add its amount to its account in totals_map
         for entry in &self.entries {
-            for posting in &entry.postings {
+            for posting in entry.get_postings() {
                 let posting_amount = posting.get_amount();
                 let posting_account = posting.get_account();
                 // if the account key exists, just add to it. if it doesn't exist, insert a new key
@@ -229,24 +251,28 @@ impl Ledger {
                     Some(pool) => {
                         if let Some(a) = posting_amount {
                             *pool += a.clone();
-                        } else { 
+                        } else {
                             match entry.get_blank_amount() {
                                 Ok(o) => {
                                     if let Some(b) = o {
                                         *pool += b;
                                     }
-                                },
-                                Err(e) => return Err(MvelopesError::from(e))
+                                }
+                                Err(e) => return Err(MvelopesError::from(e)),
                             }
                         }
-                    },
+                    }
                     None => {
                         // if the posting amount exists, set an AmountPool from the amount as the
                         // key's value. otherwise, use an AmountPool from a zero Amount.
                         if let Some(a) = posting_amount {
-                            totals_map.insert(posting_account.to_owned(), AmountPool::from(a.clone()));
+                            totals_map
+                                .insert(posting_account.to_owned(), AmountPool::from(a.clone()));
                         } else {
-                            totals_map.insert(posting_account.to_owned(), AmountPool::from(Amount::zero()));
+                            totals_map.insert(
+                                posting_account.to_owned(),
+                                AmountPool::from(Amount::zero()),
+                            );
                         }
                     }
                 }
@@ -262,16 +288,29 @@ impl Ledger {
         }
     }
 
-    fn fill_envelopes(&self) {
+    pub fn fill_envelopes(&mut self) -> Result<(), MvelopesError> {
+        let mut postings: Vec<Posting> = Vec::new();
+        for account in self.accounts.values() {
+            postings.append(&mut account.get_filling_postings())
+        }
 
+        let entry = Entry::new(
+            chrono::Local::today().naive_utc(),
+            crate::entry::EntryStatus::Cleared,
+            String::from("automatic move to envelopes (generated by mvelopes)"),
+            None,
+            postings
+        );
+
+        self.append_entry(entry)
     }
 }
 
-impl fmt::Debug for Ledger {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for Ledger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for ent in &self.entries {
             ent.fmt(f)?;
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())

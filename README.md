@@ -44,7 +44,7 @@ statuses:
 
 ```
 ?       Pending
-!       Cleared
+~       Cleared
 *       Reconciled
 ```
 

@@ -1,11 +1,11 @@
-use crate::ledger::errors::*;
-use crate::ledger::utils;
-use crate::ledger::{Amount};
+use crate::errors::*;
+use crate::utils;
+use crate::amount::Amount;
 use std::collections::HashSet;
 use std::fmt;
 
 #[derive(Clone)]
-pub struct Posting {
+pub struct Posting { // XXX as an idea, potentially make Posting an enum in the future, alongside structs NormalPosting and EnvelopePosting. the enum values are Normal and Envelope, respectively. the two types of postings should really be separated
     amount: Option<Amount>,
     account: String,
     price_assertion: Option<Amount>,
@@ -22,6 +22,30 @@ pub struct Posting {
 }
 
 impl Posting {
+    // TODO we'll get to this when there's a need for it
+    // pub fn new() -> Self {
+    //     Self {
+    //         account,
+    //         amount: Some(amount),
+    //         envelope_name: Some(envelope_name),
+    //         balance_assertion: None,
+    //         total_balance_assertion: None,
+    //         price_assertion: None,
+    //         native_value: None, // change??
+    //     }
+    // }
+
+    pub fn new_envelope_posting(account: String, amount: Amount, envelope_name: String) -> Self {
+        Self {
+            account,
+            amount: Some(amount),
+            envelope_name: Some(envelope_name),
+            balance_assertion: None,
+            total_balance_assertion: None,
+            price_assertion: None,
+            native_value: None, // change??
+        }
+    }
     fn blank() -> Self {
         Self {
             amount: None,
@@ -147,12 +171,12 @@ impl Posting {
 
                                         let calculated_price_amt = Amount {
                                             mag: total_cost.mag / a.mag,
-                                            symbol: total_cost.symbol.clone()
+                                            symbol: total_cost.symbol
                                         };
 
                                         Some(calculated_price_amt)
                                     },
-                                    None => return Err(ParseError::new().set_message("a total cost assertion can't be supplied if the posting has no amount"))
+                                    None => return Err(ParseError::default().set_message("a total cost assertion can't be supplied if the posting has no amount"))
                                 }
                             } else {
                                 // nothing there? nothing will be used
@@ -240,7 +264,7 @@ impl Posting {
     fn validate(&self, accounts: &HashSet<&String>) -> Result<(), ValidationError> {
         if !accounts.contains(&self.account) {
             let message = format!("the account `{}` is not defined in your journal", self.account);
-            Err(ValidationError::new().set_message(message.as_str()))
+            Err(ValidationError::default().set_message(message.as_str()))
         } else {
             Ok(())
         }
@@ -250,12 +274,12 @@ impl Posting {
 
     /// Returns the Posting's Amount
     pub fn get_amount(&self) -> &Option<Amount> {
-        return &self.amount;
+        &self.amount
     }
 
     /// Returns the Posting's account
     pub fn get_account(&self) -> &String {
-        return &self.account;
+        &self.account
     }
 
     pub fn get_native_value(&self) -> Option<f64> {
@@ -264,6 +288,10 @@ impl Posting {
 
     pub fn get_envelope_name(&self) -> Option<&String> {
         self.envelope_name.as_ref()
+    }
+
+    pub fn as_parsable(&self) -> String {
+        format!("{}", self)
     }
 }
 
@@ -289,9 +317,9 @@ impl fmt::Display for Posting {
 
         if let Some(n) = &self.envelope_name {
             let prelude = format!("envelope {} {}", self.account, n);
-            write!(f, "\t{:40} {}", prelude, postlude)
+            write!(f, "{:40} {}", prelude, postlude)
         } else {
-            write!(f, "\t{:40} {}", self.account, postlude)
+            write!(f, "{:40} {}", self.account, postlude)
         }
     }
 }
