@@ -1,14 +1,14 @@
-use crate::ledger::errors::*;
-use crate::ledger::utils;
-use crate::ledger::Posting;
-use crate::ledger::Amount;
+use crate::errors::*;
+use crate::utils;
+use crate::posting::Posting;
+use crate::amount::Amount;
 use std::collections::HashSet;
 use std::fmt;
 
 pub enum EntryStatus {
     /// `?`
     Pending,
-    /// `!`
+    /// `~`
     Cleared,
     /// `*`
     Reconciled,
@@ -18,7 +18,7 @@ impl fmt::Display for EntryStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let symbol = match self {
             EntryStatus::Reconciled => '*',
-            EntryStatus::Cleared => '!',
+            EntryStatus::Cleared => '~',
             EntryStatus::Pending => '?'
         };
 
@@ -31,22 +31,29 @@ pub struct Entry {
     status: EntryStatus,
     description: String,
     payee: Option<String>,
-    pub postings: Vec<Posting>,
 
-    /// True if the Entry has a posting with a blank amount. Must be kept private to prevent any
-    /// mutations from outside the struct.
-    has_blank_posting: bool,
-
-    /// True if the Entry has more than one type of currency throughout. Private so that external
-    /// code can't modify this boolean. It is set in the parsing process of an Entry.
-    mixed_currencies: bool,
-
-    /// True if the Entry has a posting for an envelope. Private so that external code can't modify
-    /// this boolean. It is set in the parsing process of an Entry.
-    has_envelope_posting: bool,
+    /// The postings in this Entry. This cannot be changed because Accounts and Envelopes process
+    /// entries only once. Any modifications to entries can't be reflected elsewhere on the fly.
+    postings: Vec<Posting>,
 }
 
 impl Entry {
+    pub fn new(
+        date: chrono::NaiveDate,
+        status: EntryStatus,
+        description: String,
+        payee: Option<String>,
+        postings: Vec<Posting>,
+    ) -> Self {
+        Self {
+            date,
+            status,
+            description,
+            payee,
+            postings
+        }
+    }
+
     pub fn parse(
         chunk: &str,
         date_format: &str,
@@ -67,11 +74,9 @@ impl Entry {
         let mut entry = if let Some(l) = lines.next() {
             Self::parse_header(l, date_format)?
         } else {
-            let err = ParseError::new().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with mvelopes's programming. please report it!");
+            let err = ParseError::default().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with mvelopes's programming. please report it!");
             return Err(MvelopesError::from(err));
         };
-
-        let mut symbol_set: HashSet<String> = HashSet::new();
 
         // parse postings
         for raw_posting in lines {
@@ -82,39 +87,11 @@ impl Entry {
 
             match Posting::parse(raw_posting, decimal_symbol, &accounts) {
                 Ok(p) => {
-                    if p.get_amount().is_none() {
-                        // this entry now has a blank posting. this must be set so that
-                        // get_blank_amount knows whether to return None or Some
-                        entry.has_blank_posting = true;
-                    } else if let Some(s) = &p.get_amount().as_ref().unwrap().symbol { // unwrap is safe here since the last if statement failed
-                        // this block shouldn't execute if the posting is blank, which is why this
-                        // section is in an 'else' block
-                        // if the symbol to the posting's amount exists, add it to the symbol set
-                        symbol_set.insert(s.to_owned());
-                    } else {
-                        // if the symbol doesn't exist, add the blank symbol
-                        symbol_set.insert("".to_string());
-                    }
-
-                    if p.get_envelope_name().is_some() {
-                        // this entry now has a blank posting. this must be set so that
-                        // get_blank_amount knows whether to return None or Some
-
-                        entry.has_envelope_posting = true;
-                    }
-
                     // push the posting
                     entry.postings.push(p);
                 },
-                Err(e) => return Err(MvelopesError::from(e)),
+                Err(e) => return Err(e),
             }
-        }
-
-        // parsing all postings is done. if there are multiple currencies involved in this entry,
-        // set the boolean as such
-        
-        if symbol_set.len() > 1 {
-            entry.mixed_currencies = true;
         }
 
         // validate this entry
@@ -130,7 +107,7 @@ impl Entry {
         let header_tokens = clean_header.split_whitespace().collect::<Vec<&str>>();
 
         if header_tokens.is_empty() {
-            return Err(ParseError::new().set_message("couldn't parse an entry header because it's blank. this is an error with mvelopes's programming; please report it!"));
+            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank. this is an error with mvelopes's programming; please report it!"));
         }
 
         // parse date
@@ -151,7 +128,7 @@ impl Entry {
         // parse status
         let status = match header_tokens[1] {
             "?" => EntryStatus::Pending,
-            "!" => EntryStatus::Cleared,
+            "~" => EntryStatus::Cleared,
             "*" => EntryStatus::Reconciled,
             _ => return Err(ParseError {
                 message: Some(format!("mvelopes requires statuses on entries and `{}` is not a status that mvelopes understands", header_tokens[1])),
@@ -172,7 +149,7 @@ impl Entry {
                 (d, Some(p))
             } else {
                 // only opening bracket exists, and that's kind of an issue
-                return Err(ParseError::new().set_message("mvelopes wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
+                return Err(ParseError::default().set_message("mvelopes wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
             }
         } else {
             (description_and_payee.to_string(), None)
@@ -184,21 +161,18 @@ impl Entry {
             date,
             status,
             postings: Vec::new(),
-            has_blank_posting: false,
-            mixed_currencies: false,
-            has_envelope_posting: false,
         })
     }
 
     pub fn get_blank_amount(&self) -> Result<Option<Amount>, ProcessingError> {
-        if !self.has_blank_posting {
+        if !self.has_blank_posting() {
             // return None if the Entry has no blank amount
             Ok(None)
         } else {
             let mut blank_amount = Amount::zero();
 
             // calculation of the blank amount depends on whether or not multiple currencies exist
-            if self.mixed_currencies {
+            if self.has_mixed_currencies() {
                 // if multiple currencies exist, attempt to return the sum of the native amounts.
                 // if any of the native amounts are None, the calculation fails and this function
                 // returns an error
@@ -210,8 +184,8 @@ impl Entry {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
-                                let err = ProcessingError::new().set_message("mvelopes couldn't calculate a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
-                                return Err(ProcessingError::from(err))
+                                let err = ProcessingError::default().set_message("mvelopes couldn't calculate a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                return Err(err)
                             }
                         }
                     }
@@ -257,7 +231,7 @@ impl Entry {
 
                 // if more than one blank amount, quit here and throw an error
                 if blank_amounts > 1 {
-                    return Err(ValidationError::new()
+                    return Err(ValidationError::default()
                         .set_message("a single entry can't have more than one blank posting")
                         .set_context(context));
                 }
@@ -268,7 +242,7 @@ impl Entry {
         // blank's amount; there's a way around this that will be worked out in the future, but for
         // now it will be unsupported: TODO
         if blank_amounts > 0 && symbol_set.len() > 1 {
-            return Err(ValidationError::new().set_message("mvelopes can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context));
+            return Err(ValidationError::default().set_message("mvelopes can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context));
         }
 
         Ok(())
@@ -289,10 +263,6 @@ impl Entry {
         s
     }
 
-    pub fn has_envelope_postings(&self) -> bool {
-        self.has_envelope_posting
-    }
-
     pub fn get_envelope_postings(&self) -> Vec<Posting> {
         let mut clone = self.postings.clone();
         clone.retain(|p| p.get_envelope_name().is_some());
@@ -303,12 +273,116 @@ impl Entry {
         &self.date
     }
 
-    pub fn has_blank_posting(&self) -> bool {
-        self.has_blank_posting
+    pub fn contains_account_posting(&self, account_name: &str) -> bool {
+        self.postings.iter().any(|p| p.get_account() == account_name)
     }
 
-    pub fn contains_account_posting(&self, account_name: &str) -> bool {
-        self.postings.iter().find(|&p| p.get_account() == account_name).is_some()
+    pub fn get_postings(&self) -> &Vec<Posting> {
+        &self.postings
+    }
+
+    pub fn has_blank_posting(&self) -> bool {
+        for posting in &self.postings {
+            if posting.get_amount().is_none() {
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn has_envelope_posting(&self) -> bool {
+        for posting in &self.postings {
+            if posting.get_envelope_name().is_some() {
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn has_mixed_currencies(&self) -> bool {
+        if self.postings.is_empty() {
+            false
+        } else {
+            let symbol_to_match = match self.postings[0].get_amount() {
+                Some(posting_amount) => {
+                    posting_amount.symbol.clone()
+                },
+                None => {
+                    match self.get_blank_amount() {
+                        Ok(blank_amount_opt) => {
+                            match blank_amount_opt {
+                                Some(blank_amount) => {
+                                    blank_amount.symbol
+                                },
+                                None => {
+                                    unreachable!()
+                                }
+                            }
+                        },
+                        Err(_) => {
+                            // assume true?
+                            return true
+                        }
+                    }
+                }
+            };
+
+            for posting in self.postings.iter().skip(1) {
+                // this code was copied and pasted from above, maybe consider writing a function
+                let posting_symbol = match posting.get_amount() {
+                    Some(posting_amount) => {
+                        posting_amount.symbol.clone()
+                    },
+                    None => {
+                        match self.get_blank_amount() {
+                            Ok(blank_amount_opt) => {
+                                match blank_amount_opt {
+                                    Some(blank_amount) => {
+                                        blank_amount.symbol
+                                    },
+                                    None => {
+                                        unreachable!()
+                                    }
+                                }
+                            },
+                            Err(_) => {
+                                // assume true?
+                                return true
+                            }
+                        }
+                    }
+                };
+
+                if posting_symbol != symbol_to_match {
+                    return true
+                }
+            }
+
+            false
+        }
+    }
+
+    pub fn as_parsable(&self, date_format: &str) -> String {
+        let date = self.date.format(date_format);
+
+        let mut s = String::new();
+
+        match &self.payee {
+            Some(p) => {
+                s.push_str(format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str());
+            },
+            None => {
+                s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
+            }
+        }
+
+        for posting in &self.postings {
+            s.push_str(format!("    {}\n", posting.as_parsable()).as_str());
+        }
+
+        s
     }
 }
 
@@ -329,6 +403,13 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', accounts);
+        match Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', accounts) {
+            Ok(e) => {
+
+            },
+            Err(e) => {
+                panic!(e)
+            }
+        };
     }
 }
