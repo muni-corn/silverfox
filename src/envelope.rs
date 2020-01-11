@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
 
+#[derive(Debug)]
 pub struct Envelope {
     name: String,
     amount: Amount,
@@ -33,6 +34,7 @@ pub struct Envelope {
     last_transaction_date: NaiveDate,
 }
 
+#[derive(Debug)]
 pub enum EnvelopeType {
     Expense,
     Goal,
@@ -54,6 +56,7 @@ impl EnvelopeType {
     }
 }
 
+#[derive(Debug)]
 pub enum FundingMethod {
     Manual,
     Conservative,
@@ -75,6 +78,7 @@ impl FundingMethod {
 }
 
 // tuples including a date is the "starting" date
+#[derive(Debug, PartialEq)]
 pub enum Frequency {
     Never,
     Once(NaiveDate),
@@ -836,6 +840,10 @@ impl Envelope {
 
         Some(starting_date.max(freq_next_date))
     }
+
+    pub fn get_freq(&self) -> &Frequency {
+        &self.freq
+    }
 }
 
 impl fmt::Display for Envelope {
@@ -880,11 +888,11 @@ mod tests {
     #[test]
     fn test_subtract_months() {
         let date_0 = NaiveDate::from_ymd(2019, 8, 2);
-        let subtracted_0 = Frequency::subtract_months(&date_0, 3);
+        let subtracted_0 = Frequency::subtract_months(date_0, 3);
         assert_eq!(NaiveDate::from_ymd(2019, 5, 2), subtracted_0);
 
         let date_1 = NaiveDate::from_ymd(2020, 1, 1);
-        let subtracted_1 = Frequency::subtract_months(&date_1, 3);
+        let subtracted_1 = Frequency::subtract_months(date_1, 3);
         assert_eq!(NaiveDate::from_ymd(2019, 10, 1), subtracted_1);
     }
 }

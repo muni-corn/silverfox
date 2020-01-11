@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Amount {
     pub mag: f64,
     pub symbol: Option<String>,

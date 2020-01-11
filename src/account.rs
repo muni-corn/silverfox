@@ -1,7 +1,6 @@
 use crate::amount::AmountPool;
 use crate::entry::Entry;
-use crate::envelope::Envelope;
-use crate::envelope::EnvelopeType;
+use crate::envelope::{Envelope, EnvelopeType};
 use crate::errors::*;
 use crate::posting::Posting;
 use crate::utils;
@@ -72,6 +71,21 @@ impl Account {
             }
         }
 
+        // parse the remainder
+        if !envelope_chunk.trim().is_empty() {
+            let new_envelope = Envelope::parse(
+                &envelope_chunk,
+                &account.name,
+                decimal_symbol,
+                &date_format,
+            )?;
+
+            if let Err(e) = account.add_envelope(new_envelope) {
+                return Err(MvelopesError::from(e));
+            }
+        }
+
+
         Ok(account)
     }
 
@@ -109,14 +123,14 @@ impl Account {
         if envelope_collection.get_mut(envelope.get_name()).is_some() {
             Err(ValidationError {
                 message: Some(format!(
-                    "there's a duplicate envelope definition for `{}` in the account `{}`",
-                    envelope.get_name(),
-                    self.name
-                )),
-                context: None,
+                                 "there's a duplicate envelope definition for `{}` in the account `{}`",
+                                 envelope.get_name(),
+                                 self.name
+                         )),
+                         context: None,
             })
         } else {
-            envelope_collection.insert(envelope.get_name().to_string(), envelope);
+            (*envelope_collection).insert(envelope.get_name().to_string(), envelope);
             Ok(())
         }
     }
@@ -136,7 +150,7 @@ impl Account {
 
     pub fn display_envelopes(&self) {
         // if no envelopes to display, quit
-        if self.expense_envelopes.is_empty() || self.goal_envelopes.is_empty() {
+        if self.expense_envelopes.is_empty() && self.goal_envelopes.is_empty() {
             return;
         }
 
@@ -188,5 +202,47 @@ impl Account {
         }
 
         amount_pool
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::envelope::Frequency;
+
+    const ACCOUNT_STR: &'static str =
+        "account assets:checking
+             goal yearly_goal due every year starting 2020/2/20
+                 amount 1000 CAD
+             expense groceries due every 5th
+                 amount 300 USD
+                 for expenses:food:groceries
+                 funding conservative";
+
+    #[test]
+    fn test_parse() {
+        // do the thing
+        let account = match Account::parse(ACCOUNT_STR, '.', "%Y/%m/%d") {
+            Ok(a) => a,
+            Err(e) => panic!(e)
+        };
+
+        // test name
+        assert_eq!(account.name, "assets:checking");
+
+        // test envelopes
+        {
+            // expenses
+            assert_eq!(account.expense_envelopes.len(), 1, "no expense envelopes; there should be one");
+            let ex_envelope = &account.expense_envelopes["groceries"];
+            assert_eq!(ex_envelope.get_name(), "groceries");
+            assert_eq!(*ex_envelope.get_freq(), Frequency::Monthly(5));
+
+            // goals
+            assert_eq!(account.goal_envelopes.len(), 1, "no goal envelopes; there should be one");
+            let goal_envelope = &account.goal_envelopes["yearly_goal"];
+            assert_eq!(goal_envelope.get_name(), "yearly_goal");
+            assert_eq!(*goal_envelope.get_freq(), Frequency::Annually(chrono::NaiveDate::from_ymd(2020, 2, 20)));
+        }
     }
 }

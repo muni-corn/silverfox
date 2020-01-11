@@ -405,12 +405,18 @@ mod tests {
 
     const ENTRY_STR: &'static str = 
         "2019/08/02 * Groceries [Grocery store]
-            accounts:assets:checking -50
-            expenses:groceries        50";
+            assets:checking    -50
+            expenses:groceries  50";
 
     #[test]
     fn test_parse() {
-        match Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', accounts) {
+        let mut accounts: HashSet<&String> = HashSet::new();
+        let checking_name = String::from("assets:checking");
+        let expenses_name = String::from("expenses:groceries");
+        accounts.insert(&checking_name);
+        accounts.insert(&expenses_name);
+
+        match Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', &accounts) {
             Ok(e) => {
 
             },

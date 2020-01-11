@@ -283,7 +283,10 @@ impl Ledger {
     }
 
     pub fn display_envelopes(&self) {
-        for (_, account) in self.accounts.iter() {
+        let mut account_keys = self.accounts.keys().collect::<Vec<&String>>();
+        account_keys.sort();
+        for key in account_keys {
+            let account = &self.accounts[key];
             account.display_envelopes();
         }
     }
