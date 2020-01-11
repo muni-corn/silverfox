@@ -231,10 +231,16 @@ mod tests {
                  for expenses:food:groceries
                  funding conservative";
 
+    const BLANK_ACCOUNT_STR: &'static str = "account ";
+
+    const ACCOUNT_WITH_SPACES_STR: &'static str = "account assets bank checking";
+
+    const DEFAULT_DATE_FORMAT: &'static str = "%Y/%m/%d";
+
     #[test]
-    fn test_parse() {
+    fn parse_test() {
         // do the thing
-        let account = match Account::parse(ACCOUNT_STR, '.', "%Y/%m/%d") {
+        let account = match Account::parse(ACCOUNT_STR, '.', DEFAULT_DATE_FORMAT) {
             Ok(a) => a,
             Err(e) => panic!(e)
         };
@@ -246,15 +252,27 @@ mod tests {
         {
             // expenses
             assert_eq!(account.expense_envelopes.len(), 1, "no expense envelopes; there should be one");
-            let ex_envelope = &account.expense_envelopes["groceries"];
+            let ex_envelope = &account.expense_envelopes[0];
             assert_eq!(ex_envelope.get_name(), "groceries");
             assert_eq!(*ex_envelope.get_freq(), Frequency::Monthly(5));
 
             // goals
             assert_eq!(account.goal_envelopes.len(), 1, "no goal envelopes; there should be one");
-            let goal_envelope = &account.goal_envelopes["yearly_goal"];
+            let goal_envelope = &account.goal_envelopes[0];
             assert_eq!(goal_envelope.get_name(), "yearly_goal");
             assert_eq!(*goal_envelope.get_freq(), Frequency::Annually(chrono::NaiveDate::from_ymd(2020, 2, 20)));
         }
+    }
+
+    #[test]
+    fn blank_account_test() {
+        let result = Account::parse(BLANK_ACCOUNT_STR, '.', DEFAULT_DATE_FORMAT);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_with_spaces_test() {
+        let result = Account::parse(ACCOUNT_WITH_SPACES_STR, '.', DEFAULT_DATE_FORMAT);
+        assert!(result.is_err());
     }
 }
