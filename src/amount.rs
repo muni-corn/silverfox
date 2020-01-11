@@ -287,6 +287,10 @@ impl AmountPool {
     pub fn only(&self, symbol: &Option<String>) -> Amount {
         self.pool.iter().find(|a| a.symbol == *symbol).unwrap_or(&Amount::zero()).clone()
     }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, Amount> {
+        self.pool.iter()
+    }
 }
 
 impl Default for AmountPool {

@@ -34,6 +34,40 @@ pub struct Envelope {
     last_transaction_date: NaiveDate,
 }
 
+impl Ord for Envelope {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_due_date = if let Some(d) = self.get_next_due_date() {
+            d
+        } else if other.get_next_due_date().is_some() {
+            return Ordering::Greater
+        } else {
+            return Ordering::Equal
+        };
+
+        let other_due_date = if let Some(d) = other.get_next_due_date() {
+            d
+        } else {
+            return Ordering::Less
+        };
+
+        self_due_date.cmp(&other_due_date)
+    }
+}
+
+impl PartialOrd for Envelope {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Envelope {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_next_due_date() == other.get_next_due_date()
+    }
+}
+
+impl Eq for Envelope {}
+
 #[derive(Debug)]
 pub enum EnvelopeType {
     Expense,
@@ -49,7 +83,7 @@ impl EnvelopeType {
                 context: Some(raw.to_string()),
                 message: Some(
                     "this envelope type doesn't exist; instead use either `expense` or `goal`"
-                        .to_string(),
+                    .to_string(),
                 ),
             }),
         }
@@ -262,7 +296,7 @@ impl Frequency {
                         date = match NaiveDate::from_ymd_opt(new_year, new_month, day_of_month) {
                             Some(x) => x,
                             None => Self::get_last_date_of_month(NaiveDate::from_ymd(
-                                new_year, new_month, 1,
+                                    new_year, new_month, 1,
                             )),
                         };
                     }
@@ -462,7 +496,7 @@ impl Envelope {
                     }
                     _ => {
                         return Err(ParseError::default().set_message(
-                            format!("the `{}` property isn't understood by mvelopes", key).as_str(),
+                                format!("the `{}` property isn't understood by mvelopes", key).as_str(),
                         ))
                     }
                 }

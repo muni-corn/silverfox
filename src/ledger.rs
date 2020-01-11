@@ -200,7 +200,7 @@ impl Ledger {
             }
         };
 
-        if let Err(e) = write!(file, "{}", entry.as_parsable(&self.date_format)) {
+        if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
             return Err(MvelopesError::from(BasicError {
                 message: format!("{}", e)
             }))
@@ -295,6 +295,18 @@ impl Ledger {
         let mut postings: Vec<Posting> = Vec::new();
         for account in self.accounts.values() {
             postings.append(&mut account.get_filling_postings())
+        }
+
+        // remove zero-magnitude postings, they're useless
+        postings.retain(|p| if let Some(a) = p.get_amount() {
+            a.mag != 0.0
+        } else {
+            false
+        });
+
+        // if no postings exist, forget adding an entry
+        if postings.is_empty() {
+            return Ok(())
         }
 
         let entry = Entry::new(
