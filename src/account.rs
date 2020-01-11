@@ -5,12 +5,11 @@ use crate::errors::*;
 use crate::posting::Posting;
 use crate::utils;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 pub struct Account {
     name: String,
-    expense_envelopes: HashMap<String, Envelope>,
-    goal_envelopes: HashMap<String, Envelope>,
+    expense_envelopes: Vec<Envelope>,
+    goal_envelopes: Vec<Envelope>,
 
     /// The real, actual value of this account, which ignores envelopes or virtual postings.
     /// TODO: use this for balance statements
@@ -36,8 +35,8 @@ impl Account {
         };
 
         let account_name = Account::parse_header(&header.to_string())?;
-        let expense_envelopes = HashMap::new();
-        let goal_envelopes = HashMap::new();
+        let expense_envelopes = Vec::new();
+        let goal_envelopes = Vec::new();
 
         let mut account = Account {
             name: account_name,
@@ -85,6 +84,7 @@ impl Account {
             }
         }
 
+        // finish by sorting envelopes
 
         Ok(account)
     }
@@ -120,7 +120,8 @@ impl Account {
             EnvelopeType::Goal => &mut self.goal_envelopes,
         };
 
-        if envelope_collection.get_mut(envelope.get_name()).is_some() {
+        let envelope_exists = envelope_collection.iter().any(|e| e.get_name() == envelope.get_name());
+        if envelope_exists {
             Err(ValidationError {
                 message: Some(format!(
                                  "there's a duplicate envelope definition for `{}` in the account `{}`",
@@ -130,18 +131,14 @@ impl Account {
                          context: None,
             })
         } else {
-            (*envelope_collection).insert(envelope.get_name().to_string(), envelope);
+            (*envelope_collection).push(envelope);
             Ok(())
         }
     }
 
     /// Processes the Entry by looking for any changes to envelope amounts and applying them
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
-        for (_, envelope) in self.expense_envelopes.iter_mut() {
-            envelope.process_entry(entry)?;
-        }
-
-        for (_, envelope) in self.goal_envelopes.iter_mut() {
+        for envelope in self.expense_envelopes.iter_mut().chain(self.goal_envelopes.iter_mut()) {
             envelope.process_entry(entry)?;
         }
 
@@ -157,10 +154,17 @@ impl Account {
         // displays account name at top
         println!("{}", self.name);
 
+        // display available balance
+        println!("  available");
+        let available_value = self.get_available_value();
+        for amount in available_value.iter() {
+            println!("    {}", amount)
+        }
+
         // display expenses
         if !self.expense_envelopes.is_empty() {
             println!("  expenses");
-            for (_, envelope) in self.expense_envelopes.iter() {
+            for envelope in self.expense_envelopes.iter() {
                 println!("{}", envelope);
             }
         }
@@ -168,7 +172,7 @@ impl Account {
         // display goals
         if !self.goal_envelopes.is_empty() {
             println!("  goals");
-            for (_, envelope) in self.goal_envelopes.iter() {
+            for envelope in self.goal_envelopes.iter() {
                 println!("{}", envelope);
             }
         }
@@ -180,11 +184,7 @@ impl Account {
         let mut postings: Vec<Posting> = Vec::new();
         let available_value = self.get_available_value();
 
-        for (_, envelope) in self.expense_envelopes.iter() {
-            postings.push(envelope.get_filling_posting(&available_value));
-        }
-
-        for (_, envelope) in self.goal_envelopes.iter() {
+        for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
             postings.push(envelope.get_filling_posting(&available_value));
         }
 
@@ -193,11 +193,7 @@ impl Account {
 
     pub fn get_available_value(&self) -> AmountPool {
         let mut amount_pool = self.real_value.clone();
-        for (_, envelope) in self.expense_envelopes.iter() {
-            amount_pool = amount_pool - envelope.get_next_amount() - envelope.get_now_amount();
-        }
-
-        for (_, envelope) in self.goal_envelopes.iter() {
+        for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
             amount_pool = amount_pool - envelope.get_next_amount() - envelope.get_now_amount();
         }
 
