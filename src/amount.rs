@@ -222,7 +222,7 @@ impl SubAssign<&Amount> for Amount {
 
 /// AmountPool is a collection of amounts, possibly with different currencies. AmountPool is
 /// designed to assist with handling these different amounts of different currencies
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AmountPool {
     pool: Vec<Amount>,
 }

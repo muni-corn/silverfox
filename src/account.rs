@@ -136,10 +136,26 @@ impl Account {
         }
     }
 
-    /// Processes the Entry by looking for any changes to envelope amounts and applying them
+    /// Processes the Entry by looking for any changes to envelope amounts and applying them. Also
+    /// adds to the real_value of the Account.
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
         for envelope in self.expense_envelopes.iter_mut().chain(self.goal_envelopes.iter_mut()) {
             envelope.process_entry(entry)?;
+        }
+
+        for posting in entry.get_postings() {
+            if *posting.get_account() == self.name && posting.get_envelope_name().is_none() {
+                if let Some(a) = posting.get_amount() {
+                    self.real_value += a;
+                } else {
+                    match entry.get_blank_amount() {
+                        Ok(o) => if let Some(a) = o {
+                            self.real_value += a;
+                        },
+                        Err(e) => return Err(e)
+                    }
+                }
+            }
         }
 
         Ok(())
