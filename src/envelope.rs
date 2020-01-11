@@ -2,8 +2,8 @@ use crate::amount::{Amount, AmountPool};
 use crate::entry::Entry;
 use crate::errors::ParseError;
 use crate::errors::ProcessingError;
-use crate::utils;
 use crate::posting::Posting;
+use crate::utils;
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
 use std::cmp::Ordering;
@@ -39,15 +39,15 @@ impl Ord for Envelope {
         let self_due_date = if let Some(d) = self.get_next_due_date() {
             d
         } else if other.get_next_due_date().is_some() {
-            return Ordering::Greater
+            return Ordering::Greater;
         } else {
-            return Ordering::Equal
+            return Ordering::Equal;
         };
 
         let other_due_date = if let Some(d) = other.get_next_due_date() {
             d
         } else {
-            return Ordering::Less
+            return Ordering::Less;
         };
 
         self_due_date.cmp(&other_due_date)
@@ -83,7 +83,7 @@ impl EnvelopeType {
                 context: Some(raw.to_string()),
                 message: Some(
                     "this envelope type doesn't exist; instead use either `expense` or `goal`"
-                    .to_string(),
+                        .to_string(),
                 ),
             }),
         }
@@ -296,7 +296,7 @@ impl Frequency {
                         date = match NaiveDate::from_ymd_opt(new_year, new_month, day_of_month) {
                             Some(x) => x,
                             None => Self::get_last_date_of_month(NaiveDate::from_ymd(
-                                    new_year, new_month, 1,
+                                new_year, new_month, 1,
                             )),
                         };
                     }
@@ -496,7 +496,7 @@ impl Envelope {
                     }
                     _ => {
                         return Err(ParseError::default().set_message(
-                                format!("the `{}` property isn't understood by mvelopes", key).as_str(),
+                            format!("the `{}` property isn't understood by mvelopes", key).as_str(),
                         ))
                     }
                 }
@@ -785,12 +785,19 @@ impl Envelope {
 
         // some convenience variables
         let symbol = &self.amount.symbol;
-        let today = Local::today().naive_utc();
-        let next_due_date_opt = self.get_next_due_date();
         let zero_amount = Amount {
             mag: 0.0,
             symbol: symbol.clone(),
         };
+        let next_due_date = if let Some(d) = self.get_next_due_date() {
+            d
+        } else {
+            // no due date, no amount
+            return zero_amount;
+        };
+
+        let today = Local::today().naive_utc();
+        let remaining_amount = self.get_remaining_next_amount();
 
         if self.last_transaction_date == today {
             zero_amount
@@ -801,38 +808,31 @@ impl Envelope {
                     zero_amount
                 }
                 FundingMethod::Aggressive => {
-                    if next_due_date_opt.is_some() {
-                        let mag = self.amount.mag.min(account_available_amount.mag);
+                    let mag = self
+                        .amount
+                        .mag
+                        .min(account_available_amount.mag) // makes sure the account value stays above zero
+                        .min(remaining_amount.mag) // prevents envelope overflow
+                        .max(-self.now_amount.mag); // makes sure there are no negative envelope balances
 
-                        Amount {
-                            mag,
-                            symbol: symbol.clone(),
-                        }
-                    } else {
-                        // if no next due date, no amount
-                        zero_amount
+                    Amount {
+                        mag,
+                        symbol: symbol.clone(),
                     }
                 }
                 FundingMethod::Conservative => {
-                    match next_due_date_opt {
-                        Some(next_due_date) => {
-                            // get days remaining, and remaining amount
-                            let date_diff = next_due_date.signed_duration_since(today);
-                            let days_remaining = date_diff.num_days();
-                            let mag = (self.get_remaining_next_amount().mag
-                                / days_remaining as f64)
-                                .min(account_available_amount.mag);
+                    // get days remaining, and remaining amount
+                    let date_diff = next_due_date.signed_duration_since(today);
+                    let days_remaining = date_diff.num_days();
+                    let mag = (remaining_amount.mag / days_remaining as f64)
+                        .min(account_available_amount.mag) // makes sure the account value stays above zero
+                        .min(remaining_amount.mag) // prevents envelope overflow
+                        .max(-self.now_amount.mag); // makes sure there are no negative envelope balances
 
-                            // return that
-                            Amount {
-                                mag,
-                                symbol: symbol.clone(),
-                            }
-                        }
-                        None => {
-                            // if no next due date, no amount
-                            zero_amount
-                        }
+                    // return that
+                    Amount {
+                        mag,
+                        symbol: symbol.clone(),
                     }
                 }
             }
@@ -863,13 +863,13 @@ impl Envelope {
         let starting_date = if let Some(d) = self.starting_date {
             d
         } else {
-            return self.freq.get_next_due_date()
+            return self.freq.get_next_due_date();
         };
 
         let freq_next_date = if let Some(d) = self.freq.get_next_due_date() {
             d
         } else {
-            return Some(starting_date)
+            return Some(starting_date);
         };
 
         Some(starting_date.max(freq_next_date))
