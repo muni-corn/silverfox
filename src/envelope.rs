@@ -899,7 +899,7 @@ impl fmt::Display for Envelope {
 
         // get now stuff
         let now_display = Amount {
-            mag: self.now_amount.mag.max(0.0), // will only be as small as zero (anything negative is taken from 'now')
+            mag: self.now_amount.mag.max(0.0), // will only be as small as zero (anything negative is taken from 'next')
             symbol: self.now_amount.symbol.clone(),
         };
         let now_text = self.make_text_progress(&now_display);
@@ -920,7 +920,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_subtract_months() {
+    fn subtract_months_test() {
         let date_0 = NaiveDate::from_ymd(2019, 8, 2);
         let subtracted_0 = Frequency::subtract_months(date_0, 3);
         assert_eq!(NaiveDate::from_ymd(2019, 5, 2), subtracted_0);

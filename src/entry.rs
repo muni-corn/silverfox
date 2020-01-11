@@ -5,6 +5,7 @@ use crate::amount::Amount;
 use std::collections::HashSet;
 use std::fmt;
 
+#[derive(Debug, PartialEq)]
 pub enum EntryStatus {
     /// `?`
     Pending,
@@ -409,7 +410,7 @@ mod tests {
             expenses:groceries  50";
 
     #[test]
-    fn test_parse() {
+    fn parse_test() {
         let mut accounts: HashSet<&String> = HashSet::new();
         let checking_name = String::from("assets:checking");
         let expenses_name = String::from("expenses:groceries");
@@ -418,7 +419,11 @@ mod tests {
 
         match Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', &accounts) {
             Ok(e) => {
-
+                assert_eq!(e.date, chrono::NaiveDate::from_ymd(2019, 8, 2), "date was not parsed correctly");
+                assert_eq!(e.status, EntryStatus::Reconciled, "status was not parsed correctly");
+                assert_eq!(e.description, String::from("Groceries"), "description was not parse correctly");
+                assert_eq!(e.payee, Some(String::from("Grocery store")), "payee was not parsed correctly");
+                assert_eq!(e.postings.len(), 2, "postings should have two items");
             },
             Err(e) => {
                 panic!(e)

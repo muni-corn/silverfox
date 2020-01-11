@@ -174,6 +174,9 @@ impl Account {
         println!("  available");
         let available_value = self.get_available_value();
         for amount in available_value.iter() {
+            if amount.mag == 0.0 {
+                continue
+            }
             println!("    {}", amount)
         }
 
