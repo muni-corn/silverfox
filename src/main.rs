@@ -6,6 +6,7 @@ pub mod entry;
 pub mod envelope;
 pub mod errors;
 pub mod flags;
+pub mod importer;
 pub mod ledger;
 pub mod posting;
 pub mod utils;

@@ -4,6 +4,7 @@ use crate::posting::Posting;
 use crate::amount::Amount;
 use std::collections::HashSet;
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum EntryStatus {
@@ -13,6 +14,28 @@ pub enum EntryStatus {
     Cleared,
     /// `*`
     Reconciled,
+}
+
+impl EntryStatus {
+    pub fn from_char(c: char) -> Result<Self, ParseError> {
+        Self::from_str(&format!("{}", c))
+    }
+}
+
+impl FromStr for EntryStatus {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "?" => Ok(EntryStatus::Pending),
+            "~" => Ok(EntryStatus::Cleared),
+            "*" => Ok(EntryStatus::Reconciled),
+            _ => Err(ParseError {
+                message: Some(format!("mvelopes requires statuses on entries and `{}` is not a status that mvelopes understands", s)),
+                context: None,
+            })
+        }
+    }
 }
 
 impl fmt::Display for EntryStatus {
@@ -32,6 +55,7 @@ pub struct Entry {
     status: EntryStatus,
     description: String,
     payee: Option<String>,
+    comment: Option<String>,
 
     /// The postings in this Entry. This cannot be changed because Accounts and Envelopes process
     /// entries only once. Any modifications to entries can't be reflected elsewhere on the fly.
@@ -45,13 +69,15 @@ impl Entry {
         description: String,
         payee: Option<String>,
         postings: Vec<Posting>,
+        comment: Option<String>,
     ) -> Self {
         Self {
             date,
             status,
             description,
             payee,
-            postings
+            postings,
+            comment,
         }
     }
 
@@ -127,15 +153,7 @@ impl Entry {
         };
 
         // parse status
-        let status = match header_tokens[1] {
-            "?" => EntryStatus::Pending,
-            "~" => EntryStatus::Cleared,
-            "*" => EntryStatus::Reconciled,
-            _ => return Err(ParseError {
-                message: Some(format!("mvelopes requires statuses on entries and `{}` is not a status that mvelopes understands", header_tokens[1])),
-                context: Some(clean_header.to_string())
-            })
-        };
+        let status = header_tokens[1].parse::<EntryStatus>()?;
 
         // parse description_and_payee
         let description_and_payee: &str = &header_tokens[2..].join(" ");
@@ -162,6 +180,7 @@ impl Entry {
             date,
             status,
             postings: Vec::new(),
+            comment: None,
         })
     }
 
@@ -379,10 +398,24 @@ impl Entry {
 
         match &self.payee {
             Some(p) => {
-                s.push_str(format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str());
+                match &self.comment {
+                    Some(c) => {
+                        s.push_str(format!("{} {} {} [{}] // {}\n", date, self.status, self.description, p, c).as_str());
+                    },
+                    None => {
+                        s.push_str(format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str());
+                    }
+                }
             },
             None => {
-                s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
+                match &self.comment {
+                    Some(c) => {
+                        s.push_str(format!("{} {} {} // {}\n", date, self.status, self.description, c).as_str());
+                    },
+                    None => {
+                        s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
+                    }
+                }
             }
         }
 
@@ -404,7 +437,7 @@ impl fmt::Display for Entry {
 mod tests {
     use super::*;
 
-    const ENTRY_STR: &'static str = 
+    const ENTRY_STR: &str = 
         "2019/08/02 * Groceries [Grocery store]
             assets:checking    -50
             expenses:groceries  50";

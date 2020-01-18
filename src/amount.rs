@@ -26,10 +26,15 @@ impl Amount {
 
         // parse amount and currency in the same chunk
         // parse magnitude
-        let raw_mag = clump
+        let mut raw_mag = clump
             .chars()
             .filter(|&c| Self::is_mag_char(c, decimal_symbol))
             .collect::<String>();
+
+        if decimal_symbol != '.' {
+            raw_mag = raw_mag.replace(decimal_symbol, ".");
+        }
+
         let mag = match raw_mag.parse::<f64>() {
             Ok(m) => m,
             Err(_) => {
