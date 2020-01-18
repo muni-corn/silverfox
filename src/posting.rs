@@ -318,9 +318,9 @@ impl fmt::Display for Posting {
 
         if let Some(n) = &self.envelope_name {
             let prelude = format!("envelope {} {}", self.account, n);
-            write!(f, "{:40} {}", prelude, postlude)
+            write!(f, "{:50} {}", prelude, postlude)
         } else {
-            write!(f, "{:40} {}", self.account, postlude)
+            write!(f, "{:50} {}", self.account, postlude)
         }
     }
 }
