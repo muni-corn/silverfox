@@ -780,7 +780,11 @@ impl Envelope {
         &self.envelope_type
     }
 
-    fn get_fill_amount(&self, account_available_amount: &Amount) -> Amount {
+    fn get_total_amount_mag(&self) -> f64 {
+        self.now_amount.mag + self.next_amount.mag
+    }
+
+    fn get_filling_amount(&self, account_available_amount: &Amount) -> Amount {
         assert_eq!(account_available_amount.symbol, self.amount.symbol);
 
         // some convenience variables
@@ -813,7 +817,7 @@ impl Envelope {
                         .mag
                         .min(account_available_amount.mag) // makes sure the account value stays above zero
                         .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.now_amount.mag); // makes sure there are no negative envelope balances
+                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
 
                     Amount {
                         mag,
@@ -827,7 +831,7 @@ impl Envelope {
                     let mag = (remaining_amount.mag / days_remaining as f64)
                         .min(account_available_amount.mag) // makes sure the account value stays above zero
                         .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.now_amount.mag); // makes sure there are no negative envelope balances
+                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
 
                     // return that
                     Amount {
@@ -842,7 +846,7 @@ impl Envelope {
     /// Returns a posting with this Envelope's fill amount for the day. `account` is passed so that
     /// the program can determine how much money we have available.
     pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> Posting {
-        let amount = self.get_fill_amount(&account_available_value.only(&self.amount.symbol));
+        let amount = self.get_filling_amount(&account_available_value.only(&self.amount.symbol));
 
         Posting::new_envelope_posting(self.account.clone(), amount, self.name.clone())
     }
