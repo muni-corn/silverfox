@@ -46,6 +46,7 @@ impl Posting {
             native_value: None, // change??
         }
     }
+
     fn blank() -> Self {
         Self {
             amount: None,
