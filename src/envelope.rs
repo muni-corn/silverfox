@@ -483,7 +483,11 @@ impl Envelope {
                     "amount" => {
                         // set the amount of the envelope
                         match Amount::parse(value, decimal_symbol) {
-                            Ok(a) => self.amount = a,
+                            Ok(a) => {
+                                self.amount = a;
+                                self.next_amount.symbol = self.amount.symbol.clone();
+                                self.now_amount.symbol = self.amount.symbol.clone();
+                            },
                             Err(e) => return Err(e),
                         }
                     }
@@ -768,8 +772,11 @@ impl Envelope {
                 } else {
                     // otherwise, anything after the last due date is for the next due
                     // date
-                    self.next_amount += amount.clone()
+                    self.next_amount += amount.clone();
                 }
+            } else {
+                // if no last due date, then everything is for next
+                self.next_amount += amount.clone();
             }
         }
 
@@ -815,7 +822,7 @@ impl Envelope {
                     let mag = self
                         .amount
                         .mag
-                        .min(account_available_amount.mag) // makes sure the account value stays above zero
+                        .min(account_available_amount.mag) // makes sure the account value stays positive :)
                         .min(remaining_amount.mag) // prevents envelope overflow
                         .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
 
@@ -829,7 +836,7 @@ impl Envelope {
                     let date_diff = next_due_date.signed_duration_since(today);
                     let days_remaining = date_diff.num_days();
                     let mag = (remaining_amount.mag / days_remaining as f64)
-                        .min(account_available_amount.mag) // makes sure the account value stays above zero
+                        .min(account_available_amount.mag) // makes sure the account value stays positive
                         .min(remaining_amount.mag) // prevents envelope overflow
                         .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
 
