@@ -518,6 +518,7 @@ impl From<&Rules> for Subrules {
 #[cfg(test)]
 mod tests {
     use crate::amount::Amount;
+    use crate::posting::Cost;
     use super::*;
 
     const RULES_STR: &str = "fields date, description, amount, currency, native_price, other
@@ -612,7 +613,7 @@ test5
                 symbol: None,
             };
             let posting0_0 =
-                Posting::new("assets:test", None, Some(amount0), Some(price0), None, None);
+                Posting::new("assets:test", None, Some(amount0), Some(Cost::UnitCost(price0)), None, None);
             let posting0_1 = Posting::new("income:unknown", None, None, None, None, None);
             entry0 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 10, 9),
@@ -637,7 +638,7 @@ test5
                 symbol: None,
             };
             let posting1_0 =
-                Posting::new("assets:test", None, Some(amount1), Some(price1), None, None);
+                Posting::new("assets:test", None, Some(amount1), Some(Cost::UnitCost(price1)), None, None);
             let posting1_1 = Posting::new("expenses:unknown", None, None, None, None, None);
             entry1 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 11, 12),
@@ -662,7 +663,7 @@ test5
                 symbol: None,
             };
             let posting2_0 =
-                Posting::new("assets:test", None, Some(amount2), Some(price2), None, None);
+                Posting::new("assets:test", None, Some(amount2), Some(Cost::UnitCost(price2)), None, None);
             let posting2_1 = Posting::new("income:unknown", None, None, None, None, None);
             entry2 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 12, 13),
@@ -687,7 +688,7 @@ test5
                 symbol: None,
             };
             let posting3_0 =
-                Posting::new("assets:test", None, Some(amount3), Some(price3), None, None);
+                Posting::new("assets:test", None, Some(amount3), Some(Cost::UnitCost(price3)), None, None);
             let posting3_1 = Posting::new("expenses:unknown", None, None, None, None, None);
             entry3 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 1, 2),
@@ -712,7 +713,7 @@ test5
                 symbol: None,
             };
             let posting4_0 =
-                Posting::new("assets:test", None, Some(amount4), Some(price4), None, None);
+                Posting::new("assets:test", None, Some(amount4), Some(Cost::UnitCost(price4)), None, None);
             let posting4_1 = Posting::new("income:unknown", None, None, None, None, None);
             entry4 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 2, 14),
