@@ -12,7 +12,7 @@ pub struct Posting {
 
     amount: Option<Amount>,
     account: String,
-    price_assertion: Option<Cost>,
+    cost_assertion: Option<Cost>,
     balance_assertion: Option<Amount>,
     total_balance_assertion: Option<Amount>,
 
@@ -25,7 +25,7 @@ impl Posting {
         account: &str,
         envelope_name: Option<String>,
         amount: Option<Amount>,
-        price_assertion: Option<Cost>,
+        cost_assertion: Option<Cost>,
         balance_assertion: Option<Amount>,
         total_balance_assertion: Option<Amount>,
     ) -> Self {
@@ -35,7 +35,7 @@ impl Posting {
             envelope_name,
             balance_assertion,
             total_balance_assertion,
-            price_assertion,
+            cost_assertion,
         }
     }
 
@@ -46,7 +46,7 @@ impl Posting {
             envelope_name: Some(envelope_name),
             balance_assertion: None,
             total_balance_assertion: None,
-            price_assertion: None,
+            cost_assertion: None,
         }
     }
 
@@ -54,7 +54,7 @@ impl Posting {
         Self {
             amount: None,
             account: String::new(),
-            price_assertion: None,
+            cost_assertion: None,
             balance_assertion: None,
             total_balance_assertion: None,
             envelope_name: None,
@@ -107,7 +107,7 @@ impl Posting {
             } else {
                 // otherwise, if the cost assertion is a native amount, we'll use that to
                 // determine the native value
-                match &self.price_assertion {
+                match &self.cost_assertion {
                     Some(c) => {
                         match c {
                             Cost::TotalCost(b) => {
@@ -175,7 +175,7 @@ impl Posting {
                 Err(e) => return Err(e),
             };
 
-        self.price_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
+        self.cost_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
             Ok(price_opt) => {
                 // parsing succeeded, if there is a price, use that
                 if let Some(price) = price_opt {
@@ -326,7 +326,7 @@ impl fmt::Display for Posting {
             postlude.push_str(&a.display());
         }
 
-        if let Some(c) = &self.price_assertion {
+        if let Some(c) = &self.cost_assertion {
             postlude.push_str(&format!(" {}", c));
         }
 
