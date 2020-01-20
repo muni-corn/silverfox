@@ -12,7 +12,7 @@ pub struct Posting {
 
     amount: Option<Amount>,
     account: String,
-    price_assertion: Option<Amount>,
+    price_assertion: Option<Cost>,
     balance_assertion: Option<Amount>,
     total_balance_assertion: Option<Amount>,
 
@@ -25,7 +25,7 @@ impl Posting {
         account: &str,
         envelope_name: Option<String>,
         amount: Option<Amount>,
-        price_assertion: Option<Amount>,
+        price_assertion: Option<Cost>,
         balance_assertion: Option<Amount>,
         total_balance_assertion: Option<Amount>,
     ) -> Self {
@@ -105,14 +105,25 @@ impl Posting {
                 // if the posting's amount is native, then of course that's the native amount
                 Some(a.mag)
             } else {
+                // otherwise, if the cost assertion is a native amount, we'll use that to
+                // determine the native value
                 match &self.price_assertion {
-                    Some(p) => {
-                        if p.symbol.is_none() {
-                            // otherwise, if the price assertion is a native amount, we'll use that to
-                            // determine the native value
-                            Some(a.mag * p.mag)
-                        } else {
-                            None
+                    Some(c) => {
+                        match c {
+                            Cost::TotalCost(b) => {
+                                if b.symbol.is_none() {
+                                    Some(b.mag)
+                                } else {
+                                    None
+                                }
+                            },
+                            Cost::UnitCost(b) => {
+                                if b.symbol.is_none() {
+                                    Some(a.mag * b.mag)
+                                } else {
+                                    None
+                                }
+                            },
                         }
                     }
                     None => None,
@@ -175,20 +186,8 @@ impl Posting {
                         Ok(total_cost_opt) => {
                             // successful, so see if something's there
                             if let Some(total_cost) = total_cost_opt {
-                                match &self.amount {
-                                    Some(a) => {
-                                        // to determine price, we have to figure it out by dividing
-                                        // the total cost by the original amount of this posting
-
-                                        let calculated_price_amt = Amount {
-                                            mag: total_cost.mag / a.mag,
-                                            symbol: total_cost.symbol
-                                        };
-
-                                        Some(calculated_price_amt)
-                                    },
-                                    None => return Err(ParseError::default().set_message("a total cost assertion can't be supplied if the posting has no amount"))
-                                }
+                                // if there is, use it
+                                Some(total_cost)
                             } else {
                                 // nothing there? nothing will be used
                                 None
@@ -225,19 +224,33 @@ impl Posting {
     fn parse_price_amount(
         amount_tokens: &[&str],
         decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
+    ) -> Result<Option<Cost>, ParseError> {
+        match Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
             s == "!" || s == "!!" || s == "="
-        })
+        })? {
+            Some(a) => {
+                Ok(Some(Cost::UnitCost(a)))
+            },
+            None => {
+                Ok(None)
+            }
+        }
     }
 
     fn parse_total_cost_amount(
         amount_tokens: &[&str],
         decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
+    ) -> Result<Option<Cost>, ParseError> {
+        match Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
             s == "!" || s == "!!" || s == "@"
-        })
+        })? {
+            Some(a) => {
+                Ok(Some(Cost::TotalCost(a)))
+            },
+            None => {
+                Ok(None)
+            }
+        }
     }
 
     fn extract_amount<P>(
@@ -313,8 +326,8 @@ impl fmt::Display for Posting {
             postlude.push_str(&a.display());
         }
 
-        if let Some(p) = &self.price_assertion {
-            postlude.push_str(&format!(" @ {}", p));
+        if let Some(c) = &self.price_assertion {
+            postlude.push_str(&format!(" {}", c));
         }
 
         if let Some(b) = &self.balance_assertion {
@@ -330,6 +343,21 @@ impl fmt::Display for Posting {
             write!(f, "{:50} {}", prelude, postlude)
         } else {
             write!(f, "{:50} {}", self.account, postlude)
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Cost {
+    TotalCost(Amount),
+    UnitCost(Amount)
+}
+
+impl fmt::Display for Cost {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TotalCost(a) => write!(f, " = {}", a),
+            Self::UnitCost(a) => write!(f, " @ {}", a),
         }
     }
 }
