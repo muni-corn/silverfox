@@ -56,7 +56,7 @@ impl fmt::Display for MvelopesError {
             MvelopesError::Validation(v) => v.fmt(f),
             MvelopesError::Parse(p) => p.fmt(f),
             MvelopesError::Processing(p) => p.fmt(f),
-            MvelopesError::Io(o) => o.fmt(f),
+            MvelopesError::Io(o) => write!(f, "mvelopes encountered an i/o error: {}", o),
             MvelopesError::Csv(c) => c.fmt(f),
         }
     }

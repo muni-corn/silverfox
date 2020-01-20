@@ -6,11 +6,10 @@ use crate::utils;
 use crate::posting::Posting;
 use crate::importer::CsvImporter;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
-use std::fs::File;
+use std::fmt::Debug;
+use std::fs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::fs;
 
 pub struct Ledger {
     file_path: PathBuf,
@@ -34,26 +33,6 @@ impl Ledger {
         }
     }
 
-    /// Given a `file_path`, returns an entire file's contents as a String
-    fn get_string_from_file(file_path: &Path) -> Result<String, MvelopesError> {
-        let path_display = file_path.display();
-        let mut file = match File::open(file_path) {
-            Ok(f) => f,
-            Err(e) => return Err(MvelopesError::from(BasicError {
-                message: format!("couldn't open `{}`: {}", path_display, e)
-            }))
-        };
-
-        let mut s = String::new();
-        if let Err(e) = file.read_to_string(&mut s) {
-            return Err(MvelopesError::from(BasicError {
-                message: format!("couldn't read `{}`: {}", path_display, e)
-            }))
-        }
-
-        Ok(s)
-    }
-
     /// Returns a ledger parsed from a file at the `file_path`
     pub fn from_file(file_path: &Path) -> Result<Self, MvelopesError> {
         let mut ledger = Self::blank();
@@ -68,20 +47,18 @@ impl Ledger {
 
     /// Adds to the ledger from the contents parsed from the file at the `file_path`
     fn add_from_file(&mut self, file_path: &Path) -> Result<(), MvelopesError> {
-        let s = match Self::get_string_from_file(file_path) {
-            Ok(s) => s,
-            Err(e) => return Err(e),
-        };
+        let s = fs::read_to_string(file_path)?;
 
-        if let Some(parent) = file_path.parent() {
-            self.add_from_str(&s, parent)
-        } else {
-            Err(MvelopesError::from(ParseError::default().set_message("a file without a valid parent can't be used")))
-        }
+        // change directory to parent after reading to string, and before parsing
+        let parent_dir = file_path.parent().unwrap();
+
+        std::env::set_current_dir(parent_dir).unwrap_or(());
+
+        self.add_from_str(&s)
     }
 
     /// Adds to the ledger from the contents parsed from the string
-    fn add_from_str(&mut self, s: &str, parent_path: &Path) -> Result<(), MvelopesError> {
+    fn add_from_str(&mut self, s: &str) -> Result<(), MvelopesError> {
         // init a chunk
         let mut chunk = String::new();
 
@@ -97,7 +74,7 @@ impl Ledger {
                     chunk.push('\n');
                     chunk.push_str(line);
                 } else {
-                    if let Err(e) = self.parse_chunk(&chunk, parent_path) {
+                    if let Err(e) = self.parse_chunk(&chunk) {
                         return Err(e);
                     }
                     chunk = String::from(line);
@@ -106,7 +83,7 @@ impl Ledger {
         }
 
         // parse the last chunk
-        if let Err(e) = self.parse_chunk(&chunk, parent_path) {
+        if let Err(e) = self.parse_chunk(&chunk) {
             Err(e)
         } else {
             Ok(())
@@ -118,7 +95,7 @@ impl Ledger {
     ///
     /// What is a "chunk"? A "chunk" starts at a line that starts with a non-whitespace character
     /// and ends before the next line that starts with a non-whitespace character.
-    fn parse_chunk(&mut self, chunk: &str, parent_path: &Path) -> Result<(), MvelopesError> {
+    fn parse_chunk(&mut self, chunk: &str) -> Result<(), MvelopesError> {
         if chunk.is_empty() {
             return Ok(()); // blank chunks are fine; they don't modify anything, so no error needed
         }
@@ -131,7 +108,7 @@ impl Ledger {
             Some("account") => self.parse_account(chunk),
             Some("currency") => self.set_currency(value),
             Some("date_format") => self.set_date_format(value),
-            Some("include") => self.include(value, parent_path),
+            Some("include") => self.include(value),
             _ => self.parse_entry(chunk),
         }
     }
@@ -165,12 +142,12 @@ impl Ledger {
         }
     }
 
-    fn include(&mut self, file: Option<&str>, parent_path: &Path) -> Result<(), MvelopesError> {
+    fn include(&mut self, file: Option<&str>) -> Result<(), MvelopesError> {
         match file {
             None => Err(MvelopesError::from(
                 ParseError::default().set_message("no file provided to an `include` clause"),
             )),
-            Some(f) => self.add_from_file(&parent_path.join(f)),
+            Some(f) => self.add_from_file(&PathBuf::from(f)),
         }
     }
 
@@ -329,10 +306,12 @@ impl Ledger {
         self.append_entry(entry)
     }
 
-    pub fn import_csv(&mut self, csv_file: &Path, rules_file: Option<&Path>) -> Result<(), MvelopesError> {
+    pub fn import_csv(&mut self, csv_file: &Path, rules_file: Option<&PathBuf>) -> Result<(), MvelopesError> {
+        let account_set = self.accounts.keys().cloned().collect();
+
         let imp = match rules_file {
-            Some(r) => CsvImporter::from_file_with_rules(csv_file, r),
-            None => CsvImporter::from_file(csv_file),
+            Some(r) => CsvImporter::from_file_with_rules(csv_file, r, account_set),
+            None => CsvImporter::from_file(csv_file, account_set),
         }?;
 
         for result in imp {
@@ -353,7 +332,7 @@ impl Ledger {
 impl Debug for Ledger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for ent in &self.entries {
-            ent.fmt(f)?;
+            std::fmt::Debug::fmt(&ent, f)?;
             writeln!(f)?;
         }
 

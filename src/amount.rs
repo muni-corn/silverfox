@@ -39,7 +39,7 @@ impl Amount {
             Ok(m) => m,
             Err(_) => {
                 return Err(ParseError {
-                    message: Some(format!("couldn't parse magnitude of amount `{}`", raw_mag)),
+                    message: Some(String::from("couldn't parse magnitude of amount")),
                     context: Some(s.to_string()),
                 })
             }

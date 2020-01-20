@@ -54,4 +54,6 @@ pub struct CommandFlags {
     pub file_path: PathBuf,
     pub subcommand: Subcommand,
     pub no_move: bool,
+    pub csv_file: Option<PathBuf>,
+    pub rules_file: Option<PathBuf>,
 }
