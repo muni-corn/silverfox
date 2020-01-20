@@ -1,7 +1,7 @@
-use crate::errors::*;
-use crate::utils;
-use crate::posting::Posting;
 use crate::amount::Amount;
+use crate::errors::*;
+use crate::posting::Posting;
+use crate::utils;
 use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
@@ -43,7 +43,7 @@ impl fmt::Display for EntryStatus {
         let symbol = match self {
             EntryStatus::Reconciled => '*',
             EntryStatus::Cleared => '~',
-            EntryStatus::Pending => '?'
+            EntryStatus::Pending => '?',
         };
 
         write!(f, "{}", symbol)
@@ -62,6 +62,16 @@ pub struct Entry {
     postings: Vec<Posting>,
 }
 
+impl fmt::Debug for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Entry {{ date: {}, status: {}, description: {}, payee: {:?}, comment: {:?}, postings: {:?} }}",
+            self.date, self.status, self.description, self.payee, self.comment, self.postings
+        )
+    }
+}
+
 impl Entry {
     pub fn new(
         date: chrono::NaiveDate,
@@ -69,8 +79,14 @@ impl Entry {
         description: String,
         payee: Option<String>,
         postings: Vec<Posting>,
-        comment: Option<String>,
+        mut comment: Option<String>,
     ) -> Self {
+        if let Some(c) = &comment {
+            if c.is_empty() {
+                comment = None
+            }
+        }
+
         Self {
             date,
             status,
@@ -116,7 +132,7 @@ impl Entry {
                 Ok(p) => {
                     // push the posting
                     entry.postings.push(p);
-                },
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -205,7 +221,7 @@ impl Entry {
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
                                 let err = ProcessingError::default().set_message("mvelopes couldn't calculate a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
-                                return Err(err)
+                                return Err(err);
                             }
                         }
                     }
@@ -213,7 +229,7 @@ impl Entry {
 
                 Ok(Some(Amount {
                     mag: native_blank_amount,
-                    symbol: None
+                    symbol: None,
                 }))
             } else {
                 // for each posting, subtract that posting's amount from the blank amount (as long as
@@ -275,7 +291,10 @@ impl Entry {
             "No payee"
         };
 
-        let mut s = format!("{} {} {} [{}]", self.date, self.status, self.description, payee);
+        let mut s = format!(
+            "{} {} {} [{}]",
+            self.date, self.status, self.description, payee
+        );
         for posting in &self.postings {
             s.push_str(&format!("\n{}", posting));
         }
@@ -294,7 +313,9 @@ impl Entry {
     }
 
     pub fn contains_account_posting(&self, account_name: &str) -> bool {
-        self.postings.iter().any(|p| p.get_account() == account_name)
+        self.postings
+            .iter()
+            .any(|p| p.get_account() == account_name)
     }
 
     pub fn get_postings(&self) -> &Vec<Posting> {
@@ -304,7 +325,7 @@ impl Entry {
     pub fn has_blank_posting(&self) -> bool {
         for posting in &self.postings {
             if posting.get_amount().is_none() {
-                return true
+                return true;
             }
         }
 
@@ -314,7 +335,7 @@ impl Entry {
     pub fn has_envelope_posting(&self) -> bool {
         for posting in &self.postings {
             if posting.get_envelope_name().is_some() {
-                return true
+                return true;
             }
         }
 
@@ -326,11 +347,9 @@ impl Entry {
             false
         } else {
             let symbol_to_match = match self.postings[0].get_amount() {
-                Some(posting_amount) => {
-                    posting_amount.symbol.clone()
-                },
+                Some(posting_amount) => posting_amount.symbol.clone(),
                 None => {
-                    return true
+                    return true;
                     // assert true? this code creates a stack overflow:
                     //
                     // match self.get_blank_amount() {
@@ -355,11 +374,9 @@ impl Entry {
             for posting in self.postings.iter().skip(1) {
                 // this code was copied and pasted from above, maybe consider writing a function
                 let posting_symbol = match posting.get_amount() {
-                    Some(posting_amount) => {
-                        posting_amount.symbol.clone()
-                    },
+                    Some(posting_amount) => posting_amount.symbol.clone(),
                     None => {
-                        return true
+                        return true;
                         // assert true? this code creates a stack overflow, not to mention it was
                         // copied from above:
                         //
@@ -383,7 +400,7 @@ impl Entry {
                 };
 
                 if posting_symbol != symbol_to_match {
-                    return true
+                    return true;
                 }
             }
 
@@ -397,26 +414,33 @@ impl Entry {
         let mut s = String::new();
 
         match &self.payee {
-            Some(p) => {
-                match &self.comment {
-                    Some(c) => {
-                        s.push_str(format!("{} {} {} [{}] // {}\n", date, self.status, self.description, p, c).as_str());
-                    },
-                    None => {
-                        s.push_str(format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str());
-                    }
+            Some(p) => match &self.comment {
+                Some(c) => {
+                    s.push_str(
+                        format!(
+                            "{} {} {} [{}] // {}\n",
+                            date, self.status, self.description, p, c
+                        )
+                        .as_str(),
+                    );
+                }
+                None => {
+                    s.push_str(
+                        format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str(),
+                    );
                 }
             },
-            None => {
-                match &self.comment {
-                    Some(c) => {
-                        s.push_str(format!("{} {} {} // {}\n", date, self.status, self.description, c).as_str());
-                    },
-                    None => {
-                        s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
-                    }
+            None => match &self.comment {
+                Some(c) => {
+                    s.push_str(
+                        format!("{} {} {} // {}\n", date, self.status, self.description, c)
+                            .as_str(),
+                    );
                 }
-            }
+                None => {
+                    s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
+                }
+            },
         }
 
         for posting in &self.postings {
@@ -437,8 +461,7 @@ impl fmt::Display for Entry {
 mod tests {
     use super::*;
 
-    const ENTRY_STR: &str = 
-        "2019/08/02 * Groceries [Grocery store]
+    const ENTRY_STR: &str = "2019/08/02 * Groceries [Grocery store]
             assets:checking    -50
             expenses:groceries  50";
 
@@ -452,15 +475,29 @@ mod tests {
 
         match Entry::parse(ENTRY_STR, "%Y/%m/%d", '.', &accounts) {
             Ok(e) => {
-                assert_eq!(e.date, chrono::NaiveDate::from_ymd(2019, 8, 2), "date was not parsed correctly");
-                assert_eq!(e.status, EntryStatus::Reconciled, "status was not parsed correctly");
-                assert_eq!(e.description, String::from("Groceries"), "description was not parse correctly");
-                assert_eq!(e.payee, Some(String::from("Grocery store")), "payee was not parsed correctly");
+                assert_eq!(
+                    e.date,
+                    chrono::NaiveDate::from_ymd(2019, 8, 2),
+                    "date was not parsed correctly"
+                );
+                assert_eq!(
+                    e.status,
+                    EntryStatus::Reconciled,
+                    "status was not parsed correctly"
+                );
+                assert_eq!(
+                    e.description,
+                    String::from("Groceries"),
+                    "description was not parse correctly"
+                );
+                assert_eq!(
+                    e.payee,
+                    Some(String::from("Grocery store")),
+                    "payee was not parsed correctly"
+                );
                 assert_eq!(e.postings.len(), 2, "postings should have two items");
-            },
-            Err(e) => {
-                panic!(e)
             }
+            Err(e) => panic!(e),
         };
     }
 }

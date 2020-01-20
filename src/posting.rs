@@ -1,11 +1,15 @@
+use crate::amount::Amount;
 use crate::errors::*;
 use crate::utils;
-use crate::amount::Amount;
 use std::collections::HashSet;
 use std::fmt;
 
-#[derive(Clone)]
-pub struct Posting { // XXX as an idea, potentially make Posting an enum in the future, alongside structs NormalPosting and EnvelopePosting. the enum values are Normal and Envelope, respectively. the two types of postings should really be separated
+#[derive(Clone, Debug)]
+pub struct Posting {
+    // NOTE: as an idea, potentially make Posting an enum in the future, alongside structs
+    // NormalPosting and EnvelopePosting. the enum values are Normal and Envelope, respectively.
+    // the two types of postings should really be separated
+
     amount: Option<Amount>,
     account: String,
     price_assertion: Option<Amount>,
@@ -14,26 +18,26 @@ pub struct Posting { // XXX as an idea, potentially make Posting an enum in the 
 
     /// Provided as Some if this posting is an explicit envelope posting
     envelope_name: Option<String>,
-
-    /// The value of this Amount in the user's native currency (the blank currency). None if the
-    /// native amount can't be determined. Private; it is set by the parsing process but should
-    /// NEVER be altered outside of this struct.
-    native_value: Option<f64>,
 }
 
 impl Posting {
-    // TODO we'll get to this when there's a need for it
-    // pub fn new() -> Self {
-    //     Self {
-    //         account,
-    //         amount: Some(amount),
-    //         envelope_name: Some(envelope_name),
-    //         balance_assertion: None,
-    //         total_balance_assertion: None,
-    //         price_assertion: None,
-    //         native_value: None, // change??
-    //     }
-    // }
+    pub fn new(
+        account: &str,
+        envelope_name: Option<String>,
+        amount: Option<Amount>,
+        price_assertion: Option<Amount>,
+        balance_assertion: Option<Amount>,
+        total_balance_assertion: Option<Amount>,
+    ) -> Self {
+        Self {
+            account: String::from(account),
+            amount,
+            envelope_name,
+            balance_assertion,
+            total_balance_assertion,
+            price_assertion,
+        }
+    }
 
     pub fn new_envelope_posting(account: String, amount: Amount, envelope_name: String) -> Self {
         Self {
@@ -43,7 +47,6 @@ impl Posting {
             balance_assertion: None,
             total_balance_assertion: None,
             price_assertion: None,
-            native_value: None, // change??
         }
     }
 
@@ -55,11 +58,14 @@ impl Posting {
             balance_assertion: None,
             total_balance_assertion: None,
             envelope_name: None,
-            native_value: None,
         }
     }
 
-    pub fn parse(line: &str, decimal_symbol: char, accounts: &HashSet<&String>) -> Result<Self, MvelopesError> {
+    pub fn parse(
+        line: &str,
+        decimal_symbol: char,
+        accounts: &HashSet<&String>,
+    ) -> Result<Self, MvelopesError> {
         let mut posting = Self::blank();
 
         // remove comments and other impurities
@@ -83,33 +89,37 @@ impl Posting {
             Err(MvelopesError::from(e))
         } else if let Err(e) = posting.parse_assertion_amounts(&amount_tokens, decimal_symbol) {
             Err(MvelopesError::from(e))
+        } else if let Err(e) = posting.validate(&accounts) {
+            Err(MvelopesError::from(e))
         } else {
-            // calculate native price of this posting. posting.amount must exist for this to work
-            // (since this is literally used primarily for calculating the value of blank posting
-            // amounts, boi)
-            if let Some(a) = &posting.amount {
-                if a.symbol.is_none() {
-                    // if the posting's amount is native, then of course that's the native amount
-                    posting.native_value = Some(a.mag);
-                } else {
-                    match &posting.price_assertion {
-                        Some(p) => {
-                            if p.symbol.is_none() {
-                                // otherwise, if the price assertion is a native amount, we'll use that to
-                                // determine the native value
-                                posting.native_value = Some(a.mag * p.mag);
-                            }
+            Ok(posting)
+        }
+    }
+
+    pub fn get_native_value(&self) -> Option<f64> {
+        // calculate native price of this posting. posting.amount must exist for this to work
+        // (since this is literally used primarily for calculating the value of blank posting
+        // amounts, boi)
+        if let Some(a) = &self.amount {
+            if a.symbol.is_none() {
+                // if the posting's amount is native, then of course that's the native amount
+                Some(a.mag)
+            } else {
+                match &self.price_assertion {
+                    Some(p) => {
+                        if p.symbol.is_none() {
+                            // otherwise, if the price assertion is a native amount, we'll use that to
+                            // determine the native value
+                            Some(a.mag * p.mag)
+                        } else {
+                            None
                         }
-                        None => (),
                     }
+                    None => None,
                 }
             }
-
-            if let Err(e) = posting.validate(&accounts) {
-                Err(MvelopesError::from(e))
-            } else {
-                Ok(posting)
-            }
+        } else {
+            None
         }
     }
 
@@ -264,7 +274,10 @@ impl Posting {
 
     fn validate(&self, accounts: &HashSet<&String>) -> Result<(), ValidationError> {
         if !accounts.contains(&self.account) {
-            let message = format!("the account `{}` is not defined in your journal", self.account);
+            let message = format!(
+                "the account `{}` is not defined in your journal",
+                self.account
+            );
             Err(ValidationError::default().set_message(message.as_str()))
         } else {
             Ok(())
@@ -281,10 +294,6 @@ impl Posting {
     /// Returns the Posting's account
     pub fn get_account(&self) -> &String {
         &self.account
-    }
-
-    pub fn get_native_value(&self) -> Option<f64> {
-        self.native_value
     }
 
     pub fn get_envelope_name(&self) -> Option<&String> {
