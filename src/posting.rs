@@ -5,25 +5,203 @@ use std::collections::HashSet;
 use std::fmt;
 
 #[derive(Clone, Debug)]
-pub struct Posting {
-    // NOTE: as an idea, potentially make Posting an enum in the future, alongside structs
-    // NormalPosting and EnvelopePosting. the enum values are Normal and Envelope, respectively.
-    // the two types of postings should really be separated
-
+pub struct ClassicPosting {
     amount: Option<Amount>,
     account: String,
     cost_assertion: Option<Cost>,
     balance_assertion: Option<Amount>,
     total_balance_assertion: Option<Amount>,
+}
 
-    /// Provided as Some if this posting is an explicit envelope posting
-    envelope_name: Option<String>,
+#[derive(Clone, Debug)]
+pub struct EnvelopePosting {
+    account_name: String,
+    envelope_name: String,
+    amount: Amount,
+}
+
+impl EnvelopePosting {
+    pub fn new(account_name: String, amount: Amount, envelope_name: String) -> Self {
+        Self {
+            account_name,
+            envelope_name,
+            amount,
+        }
+    }
+
+    pub fn parse(
+        line: &str,
+        decimal_symbol: char,
+        _accounts: &HashSet<&String>,
+    ) -> Result<Self, ParseError> {
+        let mut tokens = line.split_whitespace().skip(1);
+
+        let account_name = if let Some(a) = tokens.next() {
+            String::from(a)
+        } else {
+            return Err(ParseError::default()
+                .set_message("probably missing an account name")
+                .set_context(line));
+        };
+
+        let envelope_name = if let Some(e) = tokens.next() {
+            String::from(e)
+        } else {
+            return Err(ParseError::default()
+                .set_message("probably missing an envelope name")
+                .set_context(line));
+        };
+
+        // hopefully collects the remainder of the tokens, and not all of the beginning ones too
+        let amount_tokens: String = tokens.collect();
+        let amount = Amount::parse(&amount_tokens, decimal_symbol)?;
+
+        Ok(Self {
+            account_name,
+            envelope_name,
+            amount,
+        })
+    }
+
+    /// Returns the name of the envelope associated with this posting
+    pub fn get_envelope_name(&self) -> &String {
+        &self.envelope_name
+    }
+
+    /// Returns the account name associated with this posting
+    pub fn get_account_name(&self) -> &String {
+        &self.account_name
+    }
+
+    /// Returns the amount associated with this posting
+    pub fn get_amount(&self) -> &Amount {
+        &self.amount
+    }
+}
+
+impl Default for EnvelopePosting {
+    fn default() -> Self {
+        Self {
+            account_name: String::new(),
+            envelope_name: String::new(),
+            amount: Amount::zero(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Posting {
+    Classic(ClassicPosting),
+    Envelope(EnvelopePosting),
+}
+
+impl From<ClassicPosting> for Posting {
+    fn from(p: ClassicPosting) -> Self {
+        Self::Classic(p)
+    }
+}
+
+impl From<EnvelopePosting> for Posting {
+    fn from(p: EnvelopePosting) -> Self {
+        Self::Envelope(p)
+    }
 }
 
 impl Posting {
+    pub fn parse(
+        mut line: &str,
+        decimal_symbol: char,
+        accounts: &HashSet<&String>,
+    ) -> Result<Self, MvelopesError> {
+        // match first token, to decide on parsing an envelope posting or a classic posting
+        line = utils::remove_comments(line).trim();
+        match line.split_whitespace().next() {
+            Some(t) => {
+                if t == "envelope" {
+                    Ok(Posting::from(EnvelopePosting::parse(
+                        line,
+                        decimal_symbol,
+                        accounts,
+                    )?))
+                } else {
+                    Ok(Posting::from(ClassicPosting::parse(
+                        line,
+                        decimal_symbol,
+                        accounts,
+                    )?))
+                }
+            }
+            None => Err(MvelopesError::from(
+                ParseError::default().set_message("nothing to parse for a Posting"),
+            )),
+        }
+    }
+
+    // getters
+
+    /// Returns the Posting's Amount
+    pub fn get_amount(&self) -> Option<&Amount> {
+        match self {
+            Self::Envelope(e) => Some(&e.amount),
+            Self::Classic(c) => c.amount.as_ref(),
+        }
+    }
+
+    /// Returns the Posting's account
+    pub fn get_account(&self) -> &String {
+        match self {
+            Self::Classic(c) => &c.account,
+            Self::Envelope(e) => &e.account_name,
+        }
+    }
+
+    pub fn get_original_native_value(&self) -> Option<f64> {
+        match self {
+            Self::Envelope(_) => None, // not applicable to envelope postings
+            Self::Classic(c) => c.get_original_native_value(),
+        }
+    }
+
+    // TODO later
+    // pub fn get_native_value_now(&self, prices: Prices) -> Option<f64> {
+    //     match self {
+    //         Self::Envelope(e) => None, // not applicable to envelope postings
+    //         Self::Classic(c) => c.get_original_native_value(),
+    //     }
+    // }
+
+    /// Returns a String that can be written in a file and parsed later on, giving the same result
+    pub fn as_parsable(&self) -> String {
+        format!("{}", self)
+    }
+
+    pub fn is_envelope(&self) -> bool {
+        match self {
+            Self::Envelope(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_classic(&self) -> bool {
+        match self {
+            Self::Classic(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl fmt::Display for Posting {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Classic(c) => c.fmt(f),
+            Self::Envelope(e) => e.fmt(f),
+        }
+    }
+}
+
+impl ClassicPosting {
     pub fn new(
         account: &str,
-        envelope_name: Option<String>,
         amount: Option<Amount>,
         cost_assertion: Option<Cost>,
         balance_assertion: Option<Amount>,
@@ -32,21 +210,9 @@ impl Posting {
         Self {
             account: String::from(account),
             amount,
-            envelope_name,
             balance_assertion,
             total_balance_assertion,
             cost_assertion,
-        }
-    }
-
-    pub fn new_envelope_posting(account: String, amount: Amount, envelope_name: String) -> Self {
-        Self {
-            account,
-            amount: Some(amount),
-            envelope_name: Some(envelope_name),
-            balance_assertion: None,
-            total_balance_assertion: None,
-            cost_assertion: None,
         }
     }
 
@@ -57,7 +223,6 @@ impl Posting {
             cost_assertion: None,
             balance_assertion: None,
             total_balance_assertion: None,
-            envelope_name: None,
         }
     }
 
@@ -73,17 +238,8 @@ impl Posting {
         let tokens = trimmed_line.split_whitespace().collect::<Vec<&str>>();
 
         let amount_tokens: Vec<&str>;
-        match tokens[0] {
-            "envelope" => {
-                posting.account = tokens[1].to_string();
-                posting.envelope_name = Some(tokens[2].to_string());
-                amount_tokens = tokens[3..].to_vec();
-            }
-            _ => {
-                posting.account = tokens[0].to_string();
-                amount_tokens = tokens[1..].to_vec();
-            }
-        }
+        posting.account = tokens[0].to_string();
+        amount_tokens = tokens[1..].to_vec();
 
         if let Err(e) = posting.parse_amount(&amount_tokens, decimal_symbol) {
             Err(MvelopesError::from(e))
@@ -93,44 +249,6 @@ impl Posting {
             Err(MvelopesError::from(e))
         } else {
             Ok(posting)
-        }
-    }
-
-    pub fn get_native_value(&self) -> Option<f64> {
-        // calculate native price of this posting. posting.amount must exist for this to work
-        // (since this is literally used primarily for calculating the value of blank posting
-        // amounts, boi)
-        if let Some(a) = &self.amount {
-            if a.symbol.is_none() {
-                // if the posting's amount is native, then of course that's the native amount
-                Some(a.mag)
-            } else {
-                // otherwise, if the cost assertion is a native amount, we'll use that to
-                // determine the native value
-                match &self.cost_assertion {
-                    Some(c) => {
-                        match c {
-                            Cost::TotalCost(b) => {
-                                if b.symbol.is_none() {
-                                    Some(b.mag)
-                                } else {
-                                    None
-                                }
-                            },
-                            Cost::UnitCost(b) => {
-                                if b.symbol.is_none() {
-                                    Some(a.mag * b.mag)
-                                } else {
-                                    None
-                                }
-                            },
-                        }
-                    }
-                    None => None,
-                }
-            }
-        } else {
-            None
         }
     }
 
@@ -207,7 +325,7 @@ impl Posting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!", |&s| {
+        extract_amount(amount_tokens, decimal_symbol, "!", |&s| {
             s == "!!" || s == "@" || s == "="
         })
     }
@@ -216,7 +334,7 @@ impl Posting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Amount>, ParseError> {
-        Self::extract_amount(amount_tokens, decimal_symbol, "!!", |&s| {
+        extract_amount(amount_tokens, decimal_symbol, "!!", |&s| {
             s == "!" || s == "@" || s == "="
         })
     }
@@ -225,15 +343,11 @@ impl Posting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Cost>, ParseError> {
-        match Self::extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
+        match extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
             s == "!" || s == "!!" || s == "="
         })? {
-            Some(a) => {
-                Ok(Some(Cost::UnitCost(a)))
-            },
-            None => {
-                Ok(None)
-            }
+            Some(a) => Ok(Some(Cost::UnitCost(a))),
+            None => Ok(None),
         }
     }
 
@@ -241,46 +355,10 @@ impl Posting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Cost>, ParseError> {
-        match Self::extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
+        match extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
             s == "!" || s == "!!" || s == "@"
         })? {
-            Some(a) => {
-                Ok(Some(Cost::TotalCost(a)))
-            },
-            None => {
-                Ok(None)
-            }
-        }
-    }
-
-    fn extract_amount<P>(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-        wanted_operator: &str,
-        unwanted_op_predicate: P,
-    ) -> Result<Option<Amount>, ParseError>
-    where
-        P: FnMut(&&str) -> bool,
-    {
-        // find the balance_assertion token
-        let mut iter = amount_tokens.iter();
-        match iter.position(|&s| s == wanted_operator) {
-            Some(i) => {
-                // trim unwanted tokens
-                let mut useful_tokens = &amount_tokens[i + 1..];
-
-                // find any other tokens that should be filtered out
-                if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
-                    // trim unwanted tokens
-                    useful_tokens = &useful_tokens[..i];
-                }
-
-                // parse the amount
-                match Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol) {
-                    Ok(a) => Ok(Some(a)),
-                    Err(e) => Err(e),
-                }
-            }
+            Some(a) => Ok(Some(Cost::TotalCost(a))),
             None => Ok(None),
         }
     }
@@ -297,28 +375,44 @@ impl Posting {
         }
     }
 
-    // getters
-
-    /// Returns the Posting's Amount
-    pub fn get_amount(&self) -> &Option<Amount> {
-        &self.amount
-    }
-
-    /// Returns the Posting's account
-    pub fn get_account(&self) -> &String {
-        &self.account
-    }
-
-    pub fn get_envelope_name(&self) -> Option<&String> {
-        self.envelope_name.as_ref()
-    }
-
-    pub fn as_parsable(&self) -> String {
-        format!("{}", self)
+    pub fn get_original_native_value(&self) -> Option<f64> {
+        // calculate native price of this posting. posting.amount must exist for this to work
+        // (since this is literally used primarily for calculating the value of blank posting
+        // amounts, boi)
+        if let Some(a) = &self.amount {
+            if a.symbol.is_none() {
+                // if the posting's amount is native, then of course that's the native amount
+                Some(a.mag)
+            } else {
+                // otherwise, if the cost assertion is a native amount, we'll use that to
+                // determine the native value
+                match &self.cost_assertion {
+                    Some(c) => match c {
+                        Cost::TotalCost(b) => {
+                            if b.symbol.is_none() {
+                                Some(b.mag)
+                            } else {
+                                None
+                            }
+                        }
+                        Cost::UnitCost(b) => {
+                            if b.symbol.is_none() {
+                                Some(a.mag * b.mag)
+                            } else {
+                                None
+                            }
+                        }
+                    },
+                    None => None,
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
-impl fmt::Display for Posting {
+impl fmt::Display for ClassicPosting {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut postlude = String::new();
 
@@ -338,19 +432,21 @@ impl fmt::Display for Posting {
             postlude.push_str(&format!(" !! {}", t));
         }
 
-        if let Some(n) = &self.envelope_name {
-            let prelude = format!("envelope {} {}", self.account, n);
-            write!(f, "{:50} {}", prelude, postlude)
-        } else {
-            write!(f, "{:50} {}", self.account, postlude)
-        }
+        write!(f, "{:50} {}", self.account, postlude)
+    }
+}
+
+impl fmt::Display for EnvelopePosting {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let prelude = format!("envelope {} {}", self.account_name, self.envelope_name);
+        write!(f, "{:50} {}", prelude, self.amount)
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum Cost {
     TotalCost(Amount),
-    UnitCost(Amount)
+    UnitCost(Amount),
 }
 
 impl fmt::Display for Cost {
@@ -359,5 +455,37 @@ impl fmt::Display for Cost {
             Self::TotalCost(a) => write!(f, " = {}", a),
             Self::UnitCost(a) => write!(f, " @ {}", a),
         }
+    }
+}
+
+fn extract_amount<P>(
+    amount_tokens: &[&str],
+    decimal_symbol: char,
+    wanted_operator: &str,
+    unwanted_op_predicate: P,
+) -> Result<Option<Amount>, ParseError>
+where
+    P: FnMut(&&str) -> bool,
+{
+    // find the balance_assertion token
+    let mut iter = amount_tokens.iter();
+    match iter.position(|&s| s == wanted_operator) {
+        Some(i) => {
+            // trim unwanted tokens
+            let mut useful_tokens = &amount_tokens[i + 1..];
+
+            // find any other tokens that should be filtered out
+            if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
+                // trim unwanted tokens
+                useful_tokens = &useful_tokens[..i];
+            }
+
+            // parse the amount
+            match Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol) {
+                Ok(a) => Ok(Some(a)),
+                Err(e) => Err(e),
+            }
+        }
+        None => Ok(None),
     }
 }
