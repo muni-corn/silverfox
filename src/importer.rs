@@ -1,6 +1,6 @@
 use crate::entry::{Entry, EntryStatus};
 use crate::errors::*;
-use crate::posting::Posting;
+use crate::posting::{Posting, ClassicPosting};
 use crate::utils;
 use std::collections::{HashMap, HashSet};
 use std::collections::{LinkedList, VecDeque};
@@ -457,12 +457,12 @@ impl Rules {
                 let single_posting_amount = postings[0].get_amount();
                 if let Some(amount) = single_posting_amount {
                     if amount.mag < 0.0 {
-                        postings.push(Posting::new("expenses:unknown", None, None, None, None, None))
+                        postings.push(Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None)))
                     } else if amount.mag > 0.0 {
-                        postings.push(Posting::new("income:unknown", None, None, None, None, None))
+                        postings.push(Posting::from(ClassicPosting::new("income:unknown", None, None, None, None)))
                     } else {
                         // don't freak out about amounts with zero amounts
-                        postings.push(Posting::new("unknown", None, None, None, None, None))
+                        postings.push(Posting::from(ClassicPosting::new("unknown", None, None, None, None)))
                     }
 
                     Ok(Entry::new(date, status, description, payee, postings, comment))
@@ -613,8 +613,8 @@ test5
                 symbol: None,
             };
             let posting0_0 =
-                Posting::new("assets:test", None, Some(amount0), Some(Cost::UnitCost(price0)), None, None);
-            let posting0_1 = Posting::new("income:unknown", None, None, None, None, None);
+                Posting::from(ClassicPosting::new("assets:test", Some(amount0), Some(Cost::UnitCost(price0)), None, None));
+            let posting0_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
             entry0 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 10, 9),
                 EntryStatus::Cleared,
@@ -638,8 +638,8 @@ test5
                 symbol: None,
             };
             let posting1_0 =
-                Posting::new("assets:test", None, Some(amount1), Some(Cost::UnitCost(price1)), None, None);
-            let posting1_1 = Posting::new("expenses:unknown", None, None, None, None, None);
+                Posting::from(ClassicPosting::new("assets:test", Some(amount1), Some(Cost::UnitCost(price1)), None, None));
+            let posting1_1 = Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None));
             entry1 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 11, 12),
                 EntryStatus::Cleared,
@@ -663,8 +663,8 @@ test5
                 symbol: None,
             };
             let posting2_0 =
-                Posting::new("assets:test", None, Some(amount2), Some(Cost::UnitCost(price2)), None, None);
-            let posting2_1 = Posting::new("income:unknown", None, None, None, None, None);
+                Posting::from(ClassicPosting::new("assets:test", Some(amount2), Some(Cost::UnitCost(price2)), None, None));
+            let posting2_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
             entry2 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 12, 13),
                 EntryStatus::Cleared,
@@ -688,8 +688,8 @@ test5
                 symbol: None,
             };
             let posting3_0 =
-                Posting::new("assets:test", None, Some(amount3), Some(Cost::UnitCost(price3)), None, None);
-            let posting3_1 = Posting::new("expenses:unknown", None, None, None, None, None);
+                Posting::from(ClassicPosting::new("assets:test", Some(amount3), Some(Cost::UnitCost(price3)), None, None));
+            let posting3_1 = Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None));
             entry3 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 1, 2),
                 EntryStatus::Cleared,
@@ -713,8 +713,8 @@ test5
                 symbol: None,
             };
             let posting4_0 =
-                Posting::new("assets:test", None, Some(amount4), Some(Cost::UnitCost(price4)), None, None);
-            let posting4_1 = Posting::new("income:unknown", None, None, None, None, None);
+                Posting::from(ClassicPosting::new("assets:test", Some(amount4), Some(Cost::UnitCost(price4)), None, None));
+            let posting4_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
             entry4 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 2, 14),
                 EntryStatus::Cleared,

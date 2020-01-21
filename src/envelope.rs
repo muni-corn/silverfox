@@ -2,7 +2,7 @@ use crate::amount::{Amount, AmountPool};
 use crate::entry::Entry;
 use crate::errors::ParseError;
 use crate::errors::ProcessingError;
-use crate::posting::Posting;
+use crate::posting::{Posting, EnvelopePosting};
 use crate::utils;
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
@@ -621,21 +621,12 @@ impl Envelope {
         for posting in entry.get_envelope_postings() {
             // process each envelope posting in the entry
 
-            if let Some(envelope_name) = posting.get_envelope_name() {
+            if let Posting::Envelope(envelope_posting) = posting {
                 // this posting can only apply if the accounts match
-                if posting.get_account() == &self.account && &self.name == envelope_name {
+                if envelope_posting.get_account_name() == &self.account && &self.name == envelope_posting.get_envelope_name() {
                     // now, everything depends on the amount and date
 
-                    let amount = match posting.get_amount() {
-                        Some(a) => a.clone(),
-                        None => match entry.get_blank_amount() {
-                            Ok(b) => match b {
-                                Some(c) => c,
-                                None => unreachable!(),
-                            },
-                            Err(e) => return Err(e),
-                        },
-                    };
+                    let amount = envelope_posting.get_amount();
 
                     self.apply_amount(&amount, *entry.get_date());
                 }
@@ -710,7 +701,7 @@ impl Envelope {
                         context: Some(entry.display()),
                     });
                 } else {
-                    match posting.get_native_value() {
+                    match posting.get_original_native_value() {
                         Some(m) => {
                             amount_to_add.mag = m;
                         },
@@ -852,10 +843,10 @@ impl Envelope {
 
     /// Returns a posting with this Envelope's fill amount for the day. `account` is passed so that
     /// the program can determine how much money we have available.
-    pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> Posting {
+    pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> EnvelopePosting {
         let amount = self.get_filling_amount(&account_available_value.only(&self.amount.symbol));
 
-        Posting::new_envelope_posting(self.account.clone(), amount, self.name.clone())
+        EnvelopePosting::new(self.account.clone(), amount, self.name.clone())
     }
 
     fn get_remaining_next_amount(&self) -> Amount {

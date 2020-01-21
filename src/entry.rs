@@ -214,7 +214,7 @@ impl Entry {
                 // returns an error
                 let mut native_blank_amount = 0.0;
                 for posting in &self.postings {
-                    match posting.get_native_value() {
+                    match posting.get_original_native_value() {
                         Some(v) => native_blank_amount -= v,
                         None => {
                             // native_value will be None for the blank amount, so only throw an
@@ -304,7 +304,7 @@ impl Entry {
 
     pub fn get_envelope_postings(&self) -> Vec<Posting> {
         let mut clone = self.postings.clone();
-        clone.retain(|p| p.get_envelope_name().is_some());
+        clone.retain(|p| p.is_envelope());
         clone
     }
 
@@ -334,8 +334,8 @@ impl Entry {
 
     pub fn has_envelope_posting(&self) -> bool {
         for posting in &self.postings {
-            if posting.get_envelope_name().is_some() {
-                return true;
+            if posting.is_envelope() {
+                return true
             }
         }
 

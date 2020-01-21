@@ -144,7 +144,7 @@ impl Account {
         }
 
         for posting in entry.get_postings() {
-            if *posting.get_account() == self.name && posting.get_envelope_name().is_none() {
+            if *posting.get_account() == self.name && !posting.is_envelope() {
                 if let Some(a) = posting.get_amount() {
                     self.real_value += a;
                 } else {
@@ -204,7 +204,7 @@ impl Account {
         let available_value = self.get_available_value();
 
         for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
-            postings.push(envelope.get_filling_posting(&available_value));
+            postings.push(Posting::from(envelope.get_filling_posting(&available_value)));
         }
 
         postings
@@ -225,7 +225,7 @@ mod tests {
     use super::*;
     use crate::envelope::Frequency;
 
-    const ACCOUNT_STR: &'static str =
+    const ACCOUNT_STR: &str =
         "account assets:checking
              goal yearly_goal due every year starting 2020/2/20
                  amount 1000 CAD
@@ -234,11 +234,11 @@ mod tests {
                  for expenses:food:groceries
                  funding conservative";
 
-    const BLANK_ACCOUNT_STR: &'static str = "account ";
+    const BLANK_ACCOUNT_STR: &str = "account ";
 
-    const ACCOUNT_WITH_SPACES_STR: &'static str = "account assets bank checking";
+    const ACCOUNT_WITH_SPACES_STR: &str = "account assets bank checking";
 
-    const DEFAULT_DATE_FORMAT: &'static str = "%Y/%m/%d";
+    const DEFAULT_DATE_FORMAT: &str = "%Y/%m/%d";
 
     #[test]
     fn parse_test() {
