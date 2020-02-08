@@ -908,10 +908,10 @@ impl fmt::Display for Envelope {
         let now_bar = self.make_bar(&now_display, progress_bar_width);
 
         writeln!(f, "    {}", self.name)?;
-        writeln!(f, "      {:20} {:>20} {}", "now", now_text, now_bar)?;
+        writeln!(f, "      {:20} {:>30} {}", "now", now_text, now_bar)?;
         write!(
             f,
-            "      {:20} {:>20} {}",
+            "      {:20} {:>30} {}",
             next_prelude, next_text, next_bar
         )
     }
