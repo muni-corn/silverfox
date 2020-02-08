@@ -201,10 +201,18 @@ impl Account {
 
     pub fn get_filling_postings(&self) -> Vec<Posting> {
         let mut postings: Vec<Posting> = Vec::new();
-        let available_value = self.get_available_value();
+        let mut available_value = self.get_available_value();
 
-        for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
-            postings.push(Posting::from(envelope.get_filling_posting(&available_value)));
+        // create an iterator, then reverse it so that envelopes are drained more safely in case
+        // the account's available value is negative. goals will be drained first, starting at the
+        // envelope with the farthest due date
+        let iter = self.expense_envelopes.iter().chain(self.goal_envelopes.iter());
+        for envelope in iter.rev() {
+            let new_posting = Posting::from(envelope.get_filling_posting(&available_value));
+            if let Some(new_amount) = new_posting.get_amount() {
+                available_value -= new_amount;
+                postings.push(new_posting);
+            }
         }
 
         postings
