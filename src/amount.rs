@@ -121,9 +121,7 @@ impl PartialOrd for Amount {
 
 impl PartialEq for Amount {
     fn eq(&self, other: &Self) -> bool {
-        assert_eq!(self.symbol, other.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, other);
-
-        self.mag == other.mag
+        self.mag == other.mag && self.symbol == other.symbol
     }
 }
 
@@ -234,6 +232,14 @@ pub struct AmountPool {
 
 impl AddAssign<Amount> for AmountPool {
     fn add_assign(&mut self, amount: Amount) {
+        *self += &amount
+    }
+}
+
+impl Add<&Amount> for AmountPool {
+    type Output = Self;
+
+    fn add(mut self, amount: &Amount) -> Self::Output {
         let mut iter = self.pool.iter_mut();
         match iter.find(|a| a.symbol == amount.symbol) {
             Some(a) => {
@@ -243,16 +249,16 @@ impl AddAssign<Amount> for AmountPool {
                 self.pool.push(amount.clone());
             }
         }
+
+        self
     }
 }
 
 impl Sub<Amount> for AmountPool {
     type Output = Self;
 
-    fn sub(mut self, amount: Amount) -> Self::Output {
-        self += -amount;
-
-        self
+    fn sub(self, amount: Amount) -> Self::Output {
+        self - &amount
     }
 }
 
@@ -273,12 +279,25 @@ impl AddAssign<&Amount> for AmountPool {
 impl Sub<&Amount> for AmountPool {
     type Output = Self;
 
-    fn sub(mut self, amount: &Amount) -> Self::Output {
-        self += -amount.clone();
-
-        self
+    fn sub(self, amount: &Amount) -> Self::Output {
+        self + &(-amount.clone())
     }
 }
+
+impl SubAssign<&Amount> for AmountPool {
+    fn sub_assign(&mut self, amount: &Amount) {
+        let mut iter = self.pool.iter_mut();
+        match iter.find(|a| a.symbol == amount.symbol) {
+            Some(a) => {
+                *a -= amount;
+            },
+            None => {
+                self.pool.push(-amount.clone());
+            }
+        }
+    }
+}
+
 
 impl AmountPool {
     pub fn size(&self) -> usize {

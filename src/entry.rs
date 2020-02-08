@@ -205,36 +205,51 @@ impl Entry {
             // return None if the Entry has no blank amount
             Ok(None)
         } else {
-            let mut blank_amount = Amount::zero();
 
             // calculation of the blank amount depends on whether or not multiple currencies exist
             if self.has_mixed_currencies() {
                 // if multiple currencies exist, attempt to return the sum of the native amounts.
                 // if any of the native amounts are None, the calculation fails and this function
                 // returns an error
-                let mut native_blank_amount = 0.0;
+                let mut blank_amount = Amount::zero();
                 for posting in &self.postings {
                     match posting.get_original_native_value() {
-                        Some(v) => native_blank_amount -= v,
+                        Some(v) => blank_amount.mag -= v,
                         None => {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
-                                let err = ProcessingError::default().set_message("mvelopes couldn't calculate a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                let err = ProcessingError::default().set_message("mvelopes couldn't infer a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
                                 return Err(err);
                             }
                         }
                     }
                 }
 
-                Ok(Some(Amount {
-                    mag: native_blank_amount,
-                    symbol: None,
-                }))
+                Ok(Some(blank_amount))
             } else {
                 // for each posting, subtract that posting's amount from the blank amount (as long as
                 // `posting` doesn't have a blank amount)
-                for posting in &self.postings {
+                let mut iter = self.postings.iter();
+
+                // get starting blank amount by finding the first non-blank amount and then
+                // negating it
+                let mut blank_amount = if let Some(p) = iter.find(|p| p.get_amount().is_some()) {
+                    if let Some(a) = p.get_amount() {
+                        -a.clone()
+                    } else {
+                        // shouldn't be reachable, since preceding closure asserts this amount is
+                        // not blank
+                        unreachable!()
+                    }
+                } else {
+                    // shouldn't be reachable, since there'd better be at least one non-blank
+                    // amount
+                    unreachable!()
+                };
+
+                // subtract the rest of the postings
+                for posting in iter {
                     if let Some(a) = posting.get_amount() {
                         blank_amount -= a.clone();
                     }
@@ -296,7 +311,7 @@ impl Entry {
             self.date, self.status, self.description, payee
         );
         for posting in &self.postings {
-            s.push_str(&format!("\n{}", posting));
+            s.push_str(&format!("\n\t{}", posting));
         }
 
         s
@@ -346,61 +361,26 @@ impl Entry {
         if self.postings.is_empty() {
             false
         } else {
-            let symbol_to_match = match self.postings[0].get_amount() {
-                Some(posting_amount) => posting_amount.symbol.clone(),
-                None => {
-                    return true;
-                    // assert true? this code creates a stack overflow:
-                    //
-                    // match self.get_blank_amount() {
-                    //     Ok(blank_amount_opt) => {
-                    //         match blank_amount_opt {
-                    //             Some(blank_amount) => {
-                    //                 blank_amount.symbol
-                    //             },
-                    //             None => {
-                    //                 unreachable!()
-                    //             }
-                    //         }
-                    //     },
-                    //     Err(_) => {
-                    //         // assume true?
-                    //         return true
-                    //     }
-                    // }
+            let mut iter = self.postings.iter();
+            let symbol_to_match = if let Some(p) = iter.find(|&p| p.get_amount().is_some()) {
+                if let Some(a) = p.get_amount() {
+                    a.symbol.clone()
+                } else {
+                    unreachable!()
                 }
+            } else {
+                None
             };
 
-            for posting in self.postings.iter().skip(1) {
+            for posting in iter {
                 // this code was copied and pasted from above, maybe consider writing a function
                 let posting_symbol = match posting.get_amount() {
                     Some(posting_amount) => posting_amount.symbol.clone(),
-                    None => {
-                        return true;
-                        // assert true? this code creates a stack overflow, not to mention it was
-                        // copied from above:
-                        //
-                        // match self.get_blank_amount() {
-                        //     Ok(blank_amount_opt) => {
-                        //         match blank_amount_opt {
-                        //             Some(blank_amount) => {
-                        //                 blank_amount.symbol
-                        //             },
-                        //             None => {
-                        //                 unreachable!()
-                        //             }
-                        //         }
-                        //     },
-                        //     Err(_) => {
-                        //         // assume true?
-                        //         return true
-                        //     }
-                        // }
-                    }
+                    None => continue,
                 };
 
                 if posting_symbol != symbol_to_match {
-                    return true;
+                    return true
                 }
             }
 
