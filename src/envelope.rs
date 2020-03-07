@@ -815,7 +815,8 @@ impl Envelope {
                         .mag
                         .min(account_available_amount.mag) // makes sure the account value stays positive :)
                         .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
+                        .max(-self.get_total_amount_mag()) // makes sure there are no negative envelope balances
+                        .max(0.0); // never take money from an envelope
 
                     Amount {
                         mag,
@@ -829,7 +830,8 @@ impl Envelope {
                     let mag = (remaining_amount.mag / days_remaining as f64)
                         .min(account_available_amount.mag) // makes sure the account value stays positive
                         .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
+                        .max(-self.get_total_amount_mag()) // makes sure there are no negative envelope balances
+                        .max(0.0); // never take money from an envelope
 
                     // return that
                     Amount {
