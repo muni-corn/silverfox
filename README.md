@@ -7,8 +7,17 @@ designed around "envelope budgeting". Its main concern is
 helping you budget without overspending as well as keeping a
 good record of your finances.
 
-More will be here once the project matures and is
-functional. Currently, it doesn't do anything.
+## Foreword
+
+mvelopes has matured some and is ready for basic ledger
+parsing, balance reporting, and envelope use. Give it a try!
+
+Since mvelopes is so new, it lacks a lot of features that
+other plain-text accounting tools have, so please feel free
+to open new issues as your needs arise. I'm also open to new
+ideas and to implement new features that other plain-text
+accounting tools don't have. I look forward to hearing your
+ideas and requests!
 
 ## What sets mvelopes apart from other tools?
 
@@ -75,6 +84,13 @@ account expenses:food:dining_out
 account liabilities:credit_card
 ```
 
+### Speedy!
+
+mvelopes will try to be as fast as possible, which will
+hopefully come in handy for big ledgers. Eventually,
+mvelopes will take advantage of concurrency to process
+transactions as fast as possible.
+
 ## Journal format
 
 If you've used ledger-cli or hledger, mvelopes uses a
@@ -108,15 +124,18 @@ brackets as above, can be queried by mvelopes.
 
 ### Comments
 
-Comments in mvelopes are done with either semicolons (`;`)
-or a double-slash (`//`), which is preferred and will be
-used when using `mvelopes format`:
+Comments in mvelopes are done with either a semicolon (`;`)
+or a double-slash (`//`).
 
 ```
 2019/08/02 ? Restaurant [Fancy's]
     assets:checking     -140        // Not worth the price, by the way
     expenses:dining      140
 ```
+
+> Note: double slashes are preferred. The `format`
+> subcommand (coming soon!) will replace semicolons with
+> double slashes.
 
 ### Currencies and prices
 

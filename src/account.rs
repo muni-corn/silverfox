@@ -144,7 +144,7 @@ impl Account {
         }
 
         for posting in entry.get_postings() {
-            if *posting.get_account() == self.name && posting.get_envelope_name().is_none() {
+            if *posting.get_account() == self.name && !posting.is_envelope() {
                 if let Some(a) = posting.get_amount() {
                     self.real_value += a;
                 } else {
@@ -201,10 +201,18 @@ impl Account {
 
     pub fn get_filling_postings(&self) -> Vec<Posting> {
         let mut postings: Vec<Posting> = Vec::new();
-        let available_value = self.get_available_value();
+        let mut available_value = self.get_available_value();
 
-        for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
-            postings.push(envelope.get_filling_posting(&available_value));
+        // create an iterator, then reverse it so that envelopes are drained more safely in case
+        // the account's available value is negative. goals will be drained first, starting at the
+        // envelope with the farthest due date
+        let iter = self.expense_envelopes.iter().chain(self.goal_envelopes.iter());
+        for envelope in iter.rev() {
+            let new_posting = Posting::from(envelope.get_filling_posting(&available_value));
+            if let Some(new_amount) = new_posting.get_amount() {
+                available_value -= new_amount;
+                postings.push(new_posting);
+            }
         }
 
         postings
@@ -225,7 +233,7 @@ mod tests {
     use super::*;
     use crate::envelope::Frequency;
 
-    const ACCOUNT_STR: &'static str =
+    const ACCOUNT_STR: &str =
         "account assets:checking
              goal yearly_goal due every year starting 2020/2/20
                  amount 1000 CAD
@@ -234,11 +242,11 @@ mod tests {
                  for expenses:food:groceries
                  funding conservative";
 
-    const BLANK_ACCOUNT_STR: &'static str = "account ";
+    const BLANK_ACCOUNT_STR: &str = "account ";
 
-    const ACCOUNT_WITH_SPACES_STR: &'static str = "account assets bank checking";
+    const ACCOUNT_WITH_SPACES_STR: &str = "account assets bank checking";
 
-    const DEFAULT_DATE_FORMAT: &'static str = "%Y/%m/%d";
+    const DEFAULT_DATE_FORMAT: &str = "%Y/%m/%d";
 
     #[test]
     fn parse_test() {
