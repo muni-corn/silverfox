@@ -6,6 +6,7 @@ pub mod entry;
 pub mod envelope;
 pub mod errors;
 pub mod flags;
+pub mod importer;
 pub mod ledger;
 pub mod posting;
 pub mod utils;
@@ -79,9 +80,11 @@ fn main() {
 fn parse_flags() -> Result<CommandFlags, BasicError> {
     let mut args = env::args();
 
-    let mut file_path: Option<PathBuf> = None;
     let subcommand: Subcommand;
+    let mut file_path: Option<PathBuf> = None;
     let mut no_move = false;
+    let mut csv_file = None;
+    let mut rules_file = None;
 
     // parse subcommand
     match args.nth(1) {
@@ -95,38 +98,61 @@ fn parse_flags() -> Result<CommandFlags, BasicError> {
     }
 
     while let Some(arg) = args.next() {
+        // match boolean flags first
         match arg.as_str() {
-            "-f" | "--file" => {
-                let arg_value = parse_argument_value(args.next(), &arg)?;
-                file_path = Some(PathBuf::from(arg_value));
-            },
             "--no-move" | "-n" => {
                 no_move = true;
             },
             _ => {
-                return Err(BasicError {
-                    message: format!("mvelopes doesn't recognize this flag: `{}`", arg)
+                // then flags that require arguments
+                let arg_value = parse_argument_value(args.next(), &arg)?;
+                match arg.as_str() {
+                    "-f" | "--file" => {
+                        file_path = Some(PathBuf::from(arg_value));
+                    },
+                    "--csv-file" | "--csv" => {
+                        csv_file = Some(PathBuf::from(arg_value));
+                    },
+                    "--rules-file" | "--rules" => {
+                        rules_file = Some(PathBuf::from(arg_value));
+                    },
+                    _ => {
+                        return Err(BasicError {
+                            message: format!("mvelopes doesn't recognize this flag: `{}`", arg)
+                        })
+                    }
+                }
+            }
+        }
+    }
+
+
+    if let Some(path) = file_path {
+        Ok(CommandFlags {
+            file_path: path,
+            subcommand,
+            no_move,
+            csv_file,
+            rules_file,
+        })
+    } else {
+        // if flags.file_path is still empty after parsing flags, try to get it from the environment
+        // variable
+        match get_ledger_path() {
+            Some(path) => {
+                Ok(CommandFlags {
+                    file_path: path,
+                    subcommand,
+                    no_move,
+                    csv_file,
+                    rules_file,
                 })
             }
-        }
-    }
-
-    // if flags.file_path is still empty after parsing flags, try to get it from the environment
-    // variable
-    if file_path.is_none() {
-        file_path = match get_ledger_path() {
-            Some(p) => Some(p),
             None => {
-                return Err(BasicError::new("mvelopes wasn't given a file path. you can specify one with the `-f` flag or by setting the $LEDGER_FILE environment variable"))
+                Err(BasicError::new("mvelopes wasn't given a file path. you can specify one with the `-f` flag or by setting the $LEDGER_FILE environment variable"))
             }
         }
     }
-
-    Ok(CommandFlags {
-        file_path: file_path.unwrap(),
-        subcommand,
-        no_move
-    })
 }
 
 fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, BasicError> {
@@ -173,9 +199,21 @@ fn execute_flags(flags: CommandFlags) -> Result<(), MvelopesError> {
     match flags.subcommand {
         Subcommand::Balance => ledger.display_flat_balance()?,
         Subcommand::Envelopes => ledger.display_envelopes(),
+        Subcommand::Import => {
+            match flags.csv_file {
+                Some(c) => {
+                    return ledger.import_csv(&c, flags.rules_file.as_ref())
+                },
+                None => {
+                    return Err(MvelopesError::from(BasicError {
+                        message: String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")
+                    }))
+                },
+            }
+        }
         _ => return Err(MvelopesError::from(BasicError {
             message: format!("the `{}` subcommand is recognized by mvelopes, but not supported yet. sorry :(", flags.subcommand)
-        }))
+        })),
     }
 
     Ok(())

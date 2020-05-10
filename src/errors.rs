@@ -9,7 +9,8 @@ pub enum MvelopesError {
     Parse(ParseError),
     Validation(ValidationError),
     Processing(ProcessingError),
-    IO(std::io::Error),
+    Io(std::io::Error),
+    Csv(csv::Error),
 }
 
 impl From<BasicError> for MvelopesError {
@@ -38,7 +39,13 @@ impl From<ProcessingError> for MvelopesError {
 
 impl From<std::io::Error> for MvelopesError {
     fn from(err: std::io::Error) -> Self {
-        Self::IO(err)
+        Self::Io(err)
+    }
+}
+
+impl From<csv::Error> for MvelopesError {
+    fn from(err: csv::Error) -> Self {
+        Self::Csv(err)
     }
 }
 
@@ -49,7 +56,8 @@ impl fmt::Display for MvelopesError {
             MvelopesError::Validation(v) => v.fmt(f),
             MvelopesError::Parse(p) => p.fmt(f),
             MvelopesError::Processing(p) => p.fmt(f),
-            MvelopesError::IO(o) => o.fmt(f),
+            MvelopesError::Io(o) => write!(f, "mvelopes encountered an i/o error: {}", o),
+            MvelopesError::Csv(c) => c.fmt(f),
         }
     }
 }

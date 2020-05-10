@@ -2,7 +2,7 @@ use crate::amount::{Amount, AmountPool};
 use crate::entry::Entry;
 use crate::errors::ParseError;
 use crate::errors::ProcessingError;
-use crate::posting::Posting;
+use crate::posting::{Posting, EnvelopePosting};
 use crate::utils;
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
@@ -483,7 +483,11 @@ impl Envelope {
                     "amount" => {
                         // set the amount of the envelope
                         match Amount::parse(value, decimal_symbol) {
-                            Ok(a) => self.amount = a,
+                            Ok(a) => {
+                                self.amount = a;
+                                self.next_amount.symbol = self.amount.symbol.clone();
+                                self.now_amount.symbol = self.amount.symbol.clone();
+                            },
                             Err(e) => return Err(e),
                         }
                     }
@@ -617,21 +621,12 @@ impl Envelope {
         for posting in entry.get_envelope_postings() {
             // process each envelope posting in the entry
 
-            if let Some(envelope_name) = posting.get_envelope_name() {
+            if let Posting::Envelope(envelope_posting) = posting {
                 // this posting can only apply if the accounts match
-                if posting.get_account() == &self.account && &self.name == envelope_name {
+                if envelope_posting.get_account_name() == &self.account && &self.name == envelope_posting.get_envelope_name() {
                     // now, everything depends on the amount and date
 
-                    let amount = match posting.get_amount() {
-                        Some(a) => a.clone(),
-                        None => match entry.get_blank_amount() {
-                            Ok(b) => match b {
-                                Some(c) => c,
-                                None => unreachable!(),
-                            },
-                            Err(e) => return Err(e),
-                        },
-                    };
+                    let amount = envelope_posting.get_amount();
 
                     self.apply_amount(&amount, *entry.get_date());
                 }
@@ -706,7 +701,7 @@ impl Envelope {
                         context: Some(entry.display()),
                     });
                 } else {
-                    match posting.get_native_value() {
+                    match posting.get_original_native_value() {
                         Some(m) => {
                             amount_to_add.mag = m;
                         },
@@ -768,8 +763,11 @@ impl Envelope {
                 } else {
                     // otherwise, anything after the last due date is for the next due
                     // date
-                    self.next_amount += amount.clone()
+                    self.next_amount += amount.clone();
                 }
+            } else {
+                // if no last due date, then everything is for next
+                self.next_amount += amount.clone();
             }
         }
 
@@ -815,9 +813,9 @@ impl Envelope {
                     let mag = self
                         .amount
                         .mag
-                        .min(account_available_amount.mag) // makes sure the account value stays above zero
-                        .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
+                        .min(account_available_amount.mag) // makes sure the account value stays positive :)
+                        .max(-self.get_total_amount_mag()) // makes sure there are no negative envelope balances
+                        .max(0.0); // never take money from an envelope
 
                     Amount {
                         mag,
@@ -829,9 +827,9 @@ impl Envelope {
                     let date_diff = next_due_date.signed_duration_since(today);
                     let days_remaining = date_diff.num_days();
                     let mag = (remaining_amount.mag / days_remaining as f64)
-                        .min(account_available_amount.mag) // makes sure the account value stays above zero
-                        .min(remaining_amount.mag) // prevents envelope overflow
-                        .max(-self.get_total_amount_mag()); // makes sure there are no negative envelope balances
+                        .min(account_available_amount.mag) // makes sure the account value stays positive
+                        .max(-self.get_total_amount_mag()) // makes sure there are no negative envelope balances
+                        .max(0.0); // never take money from an envelope
 
                     // return that
                     Amount {
@@ -845,10 +843,10 @@ impl Envelope {
 
     /// Returns a posting with this Envelope's fill amount for the day. `account` is passed so that
     /// the program can determine how much money we have available.
-    pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> Posting {
+    pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> EnvelopePosting {
         let amount = self.get_filling_amount(&account_available_value.only(&self.amount.symbol));
 
-        Posting::new_envelope_posting(self.account.clone(), amount, self.name.clone())
+        EnvelopePosting::new(self.account.clone(), amount, self.name.clone())
     }
 
     fn get_remaining_next_amount(&self) -> Amount {
@@ -910,10 +908,10 @@ impl fmt::Display for Envelope {
         let now_bar = self.make_bar(&now_display, progress_bar_width);
 
         writeln!(f, "    {}", self.name)?;
-        writeln!(f, "      {:20} {:>20} {}", "now", now_text, now_bar)?;
+        writeln!(f, "      {:20} {:>30} {}", "now", now_text, now_bar)?;
         write!(
             f,
-            "      {:20} {:>20} {}",
+            "      {:20} {:>30} {}",
             next_prelude, next_text, next_bar
         )
     }
