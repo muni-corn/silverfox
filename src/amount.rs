@@ -11,6 +11,9 @@ pub struct Amount {
 
 impl Amount {
     pub fn parse(s: &str, decimal_symbol: char) -> Result<Self, ParseError> {
+        // reassign and remove double negatives
+        let s = s.replace("--", "");
+
         let split = s.split_whitespace().collect::<Vec<&str>>();
 
         let clump = match split.len() {
@@ -28,7 +31,7 @@ impl Amount {
         // parse magnitude
         let mut raw_mag = clump
             .chars()
-            .filter(|&c| Self::is_mag_char(c, decimal_symbol))
+            .filter(|&c| is_mag_char(c, decimal_symbol))
             .collect::<String>();
 
         if decimal_symbol != '.' {
@@ -67,14 +70,9 @@ impl Amount {
         }
     }
 
-    /// Returns true if the char is a digit, decimal symbol, or dash.
-    fn is_mag_char(c: char, decimal_symbol: char) -> bool {
-        c.is_digit(10) || c == decimal_symbol || c == '-'
-    }
-
     /// Returns true if the char not a magnitude character, dot, or comma.
     fn is_symbol_char(c: char, decimal_symbol: char) -> bool {
-        !Self::is_mag_char(c, decimal_symbol) && c != '.' && c != ','
+        !is_mag_char(c, decimal_symbol) && c != '.' && c != ','
     }
 
     pub fn display(&self) -> String {
@@ -349,3 +347,7 @@ impl fmt::Display for AmountPool {
     }
 }
 
+/// Returns true if the char is a digit, decimal symbol, or dash.
+fn is_mag_char(c: char, decimal_symbol: char) -> bool {
+    c.is_digit(10) || c == decimal_symbol || c == '-'
+}
