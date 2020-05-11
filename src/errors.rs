@@ -119,16 +119,16 @@ impl fmt::Display for ParseError {
         if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "mvelopes couldn't understand the following:\n\n{}\n\nmore information: {}",
+                "mvelopes couldn't understand the following:\n\n{}\n\n{}",
                 self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
             write!(f, "mvelopes ran across an issue in your journal: {}", a)
         } else if let Some(b) = &self.context {
-            write!(f, "mvelopes couldn't understand this:\n\n{}\n\nbut no further information was provided", b)
+            write!(f, "mvelopes couldn't understand this:\n\n{}\n\nbut no explanation was provided", b)
         } else {
-            write!(f, "something couldn't be parsed, but no information was provided")
+            write!(f, "mvelopes couldn't parse something, but no information was provided")
         }
     }
 }
@@ -169,7 +169,7 @@ impl fmt::Display for ValidationError {
         if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "the following is invalid to mvelopes:\n\n{}\n\nmore information: {}",
+                "the following is invalid to mvelopes:\n\n{}\n\n{}",
                 self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
@@ -216,7 +216,7 @@ impl fmt::Display for ProcessingError {
         if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "looks like your journal is all valid, but this couldn't be processed:\n\n{}\n\nmore information: {}",
+                "looks like your journal is all valid, but this couldn't be processed:\n\n{}\n\n{}",
                 self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
@@ -225,7 +225,7 @@ impl fmt::Display for ProcessingError {
         } else if let Some(b) = &self.context {
             write!(f, "your journal is valid, but mvelopes couldn't process this:\n\n{}\n\nno further information was provided", b)
         } else {
-            write!(f, "your journal is valid, but mvelopes couldn't process something (no information was provided)")
+            write!(f, "your journal is valid, but mvelopes couldn't process something. no information was provided")
         }
     }
 }
