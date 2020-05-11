@@ -26,7 +26,7 @@ impl Ledger {
         Ledger {
             file_path: PathBuf::new(),
             date_format: String::from("%Y/%m/%d"),
-            entries: Vec::<Entry>::new(),
+            entries: Vec::new(),
             accounts: HashMap::new(),
             default_currency: String::new(),
             decimal_symbol: '.',
@@ -176,7 +176,7 @@ impl Ledger {
     /// Appends the entry to the file of the Ledger, then internally adds the Entry itself to the
     /// Ledger.
     fn append_entry(&mut self, entry: Entry) -> Result<(), MvelopesError> {
-        let mut file = match fs::File::with_options().append(true).open(&self.file_path) {
+        let mut file = match fs::OpenOptions::new().append(true).open(&self.file_path) {
             Ok(f) => {
                 f
             },
