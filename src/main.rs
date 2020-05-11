@@ -1,5 +1,3 @@
-#![feature(with_options)]
-
 pub mod account;
 pub mod amount;
 pub mod entry;
