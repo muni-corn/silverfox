@@ -47,7 +47,7 @@ impl Ledger {
 
     /// Adds to the ledger from the contents parsed from the file at the `file_path`
     fn add_from_file(&mut self, file_path: &Path) -> Result<(), MvelopesError> {
-        let s = fs::read_to_string(file_path)?;
+        let s = fs::read_to_string(file_path).map_err(|e| MvelopesError::file_error(&PathBuf::from(file_path), e))?;
 
         // change directory to parent after reading to string, and before parsing
         let parent_dir = file_path.parent().unwrap();
@@ -181,7 +181,7 @@ impl Ledger {
                 f
             },
             Err(e) => {
-                return Err(MvelopesError::from(e))
+                return Err(MvelopesError::file_error(&self.file_path, e))
             }
         };
 

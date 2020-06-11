@@ -1,6 +1,7 @@
 use std::fmt;
+use std::path::{Path, PathBuf};
 
-// TODO auto-fixable errors
+// TODO auto-fixable errors?
 
 /// MvelopesError is an enum for all possible custom errors that mvelopes can throw. It is a
 /// wrapper of sorts.
@@ -9,7 +10,7 @@ pub enum MvelopesError {
     Parse(ParseError),
     Validation(ValidationError),
     Processing(ProcessingError),
-    Io(std::io::Error),
+    File(PathBuf, std::io::Error),
     Csv(csv::Error),
 }
 
@@ -37,12 +38,6 @@ impl From<ProcessingError> for MvelopesError {
     }
 }
 
-impl From<std::io::Error> for MvelopesError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
-    }
-}
-
 impl From<csv::Error> for MvelopesError {
     fn from(err: csv::Error) -> Self {
         Self::Csv(err)
@@ -56,9 +51,15 @@ impl fmt::Display for MvelopesError {
             MvelopesError::Validation(v) => v.fmt(f),
             MvelopesError::Parse(p) => p.fmt(f),
             MvelopesError::Processing(p) => p.fmt(f),
-            MvelopesError::Io(o) => write!(f, "mvelopes encountered an i/o error: {}", o),
+            MvelopesError::File(p, e) => write!(f, "mvelopes encountered an i/o error: {}\n(file: {})", e, p.display()),
             MvelopesError::Csv(c) => c.fmt(f),
         }
+    }
+}
+
+impl MvelopesError {
+    pub fn file_error<P: AsRef<Path>>(path: P, error: std::io::Error) -> Self {
+        Self::File(path.as_ref().to_path_buf(), error)
     }
 }
 
