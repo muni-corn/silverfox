@@ -32,8 +32,8 @@ impl CsvImporter {
         rules_file: &Path,
         ledger_account_set: HashSet<String>,
     ) -> Result<Self, MvelopesError> {
-        let csv_str = fs::read_to_string(csv_file)?;
-        let rules_str = fs::read_to_string(rules_file)?;
+        let csv_str = fs::read_to_string(csv_file).map_err(|e| MvelopesError::file_error(csv_file, e))?;
+        let rules_str = fs::read_to_string(rules_file).map_err(|e| MvelopesError::file_error(rules_file, e))?;
 
         Self::from_strs(&csv_str, &rules_str, ledger_account_set)
     }
@@ -134,10 +134,7 @@ impl Rules {
     }
 
     fn add_from_file(&mut self, rules_file: &Path) -> Result<(), MvelopesError> {
-        let s = match fs::read_to_string(rules_file) {
-            Ok(s) => s,
-            Err(e) => return Err(MvelopesError::from(e)),
-        };
+        let s = fs::read_to_string(rules_file).map_err(|e| MvelopesError::file_error(rules_file, e))?;
 
         self.add_from_str(&s)
     }
