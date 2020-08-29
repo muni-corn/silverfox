@@ -31,7 +31,7 @@ impl FromStr for EntryStatus {
             "~" => Ok(EntryStatus::Cleared),
             "*" => Ok(EntryStatus::Reconciled),
             _ => Err(ParseError {
-                message: Some(format!("mvelopes requires statuses on entries and `{}` is not a status that mvelopes understands", s)),
+                message: Some(format!("silverfox requires statuses on entries and `{}` is not a status that silverfox understands", s)),
                 context: None,
             })
         }
@@ -102,12 +102,12 @@ impl Entry {
         date_format: &str,
         decimal_symbol: char,
         accounts: &HashSet<&String>,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         let trimmed_chunk = chunk.trim();
         if trimmed_chunk.is_empty() {
             return Err(ParseError {
                 context: None,
-                message: Some("entry to parse is completely empty. this is an error with mvelopes's programming. please report it!".to_string()),
+                message: Some("entry to parse is completely empty. this is an error with silverfox's programming. please report it!".to_string()),
             }.into());
         }
 
@@ -117,8 +117,8 @@ impl Entry {
         let mut entry = if let Some(l) = lines.next() {
             Self::parse_header(l, date_format)?
         } else {
-            let err = ParseError::default().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with mvelopes's programming. please report it!");
-            return Err(MvelopesError::from(err));
+            let err = ParseError::default().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with silverfox's programming. please report it!");
+            return Err(SilverFoxError::from(err));
         };
 
         // parse postings
@@ -139,7 +139,7 @@ impl Entry {
 
         // validate this entry
         if let Err(e) = entry.validate(chunk) {
-            return Err(MvelopesError::from(e));
+            return Err(SilverFoxError::from(e));
         }
 
         Ok(entry)
@@ -150,7 +150,7 @@ impl Entry {
         let header_tokens = clean_header.split_whitespace().collect::<Vec<&str>>();
 
         if header_tokens.is_empty() {
-            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank. this is an error with mvelopes's programming; please report it!"));
+            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank. this is an error with silverfox's programming; please report it!"));
         }
 
         // parse date
@@ -184,7 +184,7 @@ impl Entry {
                 (d, Some(p))
             } else {
                 // only opening bracket exists, and that's kind of an issue
-                return Err(ParseError::default().set_message("mvelopes wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
+                return Err(ParseError::default().set_message("silverfox wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
             }
         } else {
             (description_and_payee.to_string(), None)
@@ -219,7 +219,7 @@ impl Entry {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
-                                let err = ProcessingError::default().set_message("mvelopes couldn't infer a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                let err = ProcessingError::default().set_message("silverfox couldn't infer a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
                                 return Err(err);
                             }
                         }
@@ -293,7 +293,7 @@ impl Entry {
         // blank's amount; there's a way around this that will be worked out in the future, but for
         // now it will be unsupported: TODO
         if blank_amounts > 0 && symbol_set.len() > 1 {
-            return Err(ValidationError::default().set_message("mvelopes can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context));
+            return Err(ValidationError::default().set_message("silverfox can't infer the amount of a blank posting when other postings have mixed currencies").set_context(context));
         }
 
         Ok(())

@@ -44,7 +44,7 @@ impl TryFrom<&str> for Subcommand {
             Ok(Self::Add)
         } else {
             Err(errors::BasicError {
-                message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to mvelopes. did you misplace your subcommand?", s)
+                message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
             })
         }
     }
