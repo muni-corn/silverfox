@@ -10,3 +10,5 @@ edition = "2018"
 clap = "2.33.0"
 chrono = "0.4.10"
 csv = "1.1"
+console = "0.12.0"                    # A terminal and console abstraction for Rust
+terminal_size = "0.1.13"           # Gets the size of your Linux or Windows terminal
