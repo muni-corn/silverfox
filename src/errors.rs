@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 
 // TODO auto-fixable errors?
 
-/// MvelopesError is an enum for all possible custom errors that mvelopes can throw. It is a
+/// SilverFoxError is an enum for all possible custom errors that silverfox can throw. It is a
 /// wrapper of sorts.
-pub enum MvelopesError {
+pub enum SilverFoxError {
     Basic(BasicError),
     Parse(ParseError),
     Validation(ValidationError),
@@ -14,50 +14,50 @@ pub enum MvelopesError {
     Csv(csv::Error),
 }
 
-impl From<BasicError> for MvelopesError {
+impl From<BasicError> for SilverFoxError {
     fn from(err: BasicError) -> Self {
         Self::Basic(err)
     }
 }
 
-impl From<ParseError> for MvelopesError {
+impl From<ParseError> for SilverFoxError {
     fn from(err: ParseError) -> Self {
         Self::Parse(err)
     }
 }
 
-impl From<ValidationError> for MvelopesError {
+impl From<ValidationError> for SilverFoxError {
     fn from(err: ValidationError) -> Self {
         Self::Validation(err)
     }
 }
 
-impl From<ProcessingError> for MvelopesError {
+impl From<ProcessingError> for SilverFoxError {
     fn from(err: ProcessingError) -> Self {
         Self::Processing(err)
     }
 }
 
-impl From<csv::Error> for MvelopesError {
+impl From<csv::Error> for SilverFoxError {
     fn from(err: csv::Error) -> Self {
         Self::Csv(err)
     }
 }
 
-impl fmt::Display for MvelopesError {
+impl fmt::Display for SilverFoxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MvelopesError::Basic(b) => b.fmt(f),
-            MvelopesError::Validation(v) => v.fmt(f),
-            MvelopesError::Parse(p) => p.fmt(f),
-            MvelopesError::Processing(p) => p.fmt(f),
-            MvelopesError::File(p, e) => write!(f, "mvelopes encountered an i/o error: {}\n(file: {})", e, p.display()),
-            MvelopesError::Csv(c) => c.fmt(f),
+            SilverFoxError::Basic(b) => b.fmt(f),
+            SilverFoxError::Validation(v) => v.fmt(f),
+            SilverFoxError::Parse(p) => p.fmt(f),
+            SilverFoxError::Processing(p) => p.fmt(f),
+            SilverFoxError::File(p, e) => write!(f, "silverfox encountered an i/o error: {}\n(file: {})", e, p.display()),
+            SilverFoxError::Csv(c) => c.fmt(f),
         }
     }
 }
 
-impl MvelopesError {
+impl SilverFoxError {
     pub fn file_error<P: AsRef<Path>>(path: P, error: std::io::Error) -> Self {
         Self::File(path.as_ref().to_path_buf(), error)
     }
@@ -83,7 +83,7 @@ impl fmt::Display for BasicError {
     }
 }
 
-/// ParseError is thrown during the parsing phase of ledger construction. If mvelopes can't parse
+/// ParseError is thrown during the parsing phase of ledger construction. If silverfox can't parse
 /// something, this error type will be thrown.
 #[derive(Debug)]
 pub struct ParseError {
@@ -120,21 +120,21 @@ impl fmt::Display for ParseError {
         if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "mvelopes couldn't understand the following:\n\n{}\n\n{}",
+                "silverfox couldn't understand the following:\n\n{}\n\n{}",
                 self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "mvelopes ran across an issue in your journal: {}", a)
+            write!(f, "silverfox ran across an issue in your journal: {}", a)
         } else if let Some(b) = &self.context {
-            write!(f, "mvelopes couldn't understand this:\n\n{}\n\nbut no explanation was provided", b)
+            write!(f, "silverfox couldn't understand this:\n\n{}\n\nbut no explanation was provided", b)
         } else {
-            write!(f, "mvelopes couldn't parse something, but no information was provided")
+            write!(f, "silverfox couldn't parse something, but no information was provided")
         }
     }
 }
 
-/// ValidationError is thrown during the validation phase of ledger construction. If mvelopes finds
+/// ValidationError is thrown during the validation phase of ledger construction. If silverfox finds
 /// something that's invalid and can't continue with construction, this error type will be thrown.
 #[derive(Debug)]
 pub struct ValidationError {
@@ -170,16 +170,16 @@ impl fmt::Display for ValidationError {
         if self.message.is_some() && self.context.is_some() {
             write!(
                 f,
-                "the following is invalid to mvelopes:\n\n{}\n\n{}",
+                "the following is invalid to silverfox:\n\n{}\n\n{}",
                 self.context.as_ref().unwrap(),
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "mvelopes flagged your journal file as invalid: {}", a)
+            write!(f, "silverfox flagged your journal file as invalid: {}", a)
         } else if let Some(b) = &self.context {
-            write!(f, "the following is invalid to mvelopes:\n\n{}\n\nbut no further information was provided", b)
+            write!(f, "the following is invalid to silverfox:\n\n{}\n\nbut no further information was provided", b)
         } else {
-            write!(f, "mvelopes found something invalid, but no information was provided")
+            write!(f, "silverfox found something invalid, but no information was provided")
         }
     }
 }
@@ -222,11 +222,11 @@ impl fmt::Display for ProcessingError {
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "your journal is valid, but mvelopes couldn't process this: {}", a)
+            write!(f, "your journal is valid, but silverfox couldn't process this: {}", a)
         } else if let Some(b) = &self.context {
-            write!(f, "your journal is valid, but mvelopes couldn't process this:\n\n{}\n\nno further information was provided", b)
+            write!(f, "your journal is valid, but silverfox couldn't process this:\n\n{}\n\nno further information was provided", b)
         } else {
-            write!(f, "your journal is valid, but mvelopes couldn't process something. no information was provided")
+            write!(f, "your journal is valid, but silverfox couldn't process something. no information was provided")
         }
     }
 }

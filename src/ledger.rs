@@ -34,7 +34,7 @@ impl Ledger {
     }
 
     /// Returns a ledger parsed from a file at the `file_path`
-    pub fn from_file(file_path: &Path) -> Result<Self, MvelopesError> {
+    pub fn from_file(file_path: &Path) -> Result<Self, SilverFoxError> {
         let mut ledger = Self::blank();
         ledger.file_path = PathBuf::from(file_path);
 
@@ -46,8 +46,8 @@ impl Ledger {
     }
 
     /// Adds to the ledger from the contents parsed from the file at the `file_path`
-    fn add_from_file(&mut self, file_path: &Path) -> Result<(), MvelopesError> {
-        let s = fs::read_to_string(file_path).map_err(|e| MvelopesError::file_error(&PathBuf::from(file_path), e))?;
+    fn add_from_file(&mut self, file_path: &Path) -> Result<(), SilverFoxError> {
+        let s = fs::read_to_string(file_path).map_err(|e| SilverFoxError::file_error(&PathBuf::from(file_path), e))?;
 
         // change directory to parent after reading to string, and before parsing
         let parent_dir = file_path.parent().unwrap();
@@ -58,7 +58,7 @@ impl Ledger {
     }
 
     /// Adds to the ledger from the contents parsed from the string
-    fn add_from_str(&mut self, s: &str) -> Result<(), MvelopesError> {
+    fn add_from_str(&mut self, s: &str) -> Result<(), SilverFoxError> {
         // init a chunk
         let mut chunk = String::new();
 
@@ -90,12 +90,12 @@ impl Ledger {
         }
     }
 
-    /// Parses a single chunk and adds its contents to the ledger. Returns an MvelopesError is
+    /// Parses a single chunk and adds its contents to the ledger. Returns an SilverFoxError is
     /// there was an issue in validation or in parsing.
     ///
     /// What is a "chunk"? A "chunk" starts at a line that starts with a non-whitespace character
     /// and ends before the next line that starts with a non-whitespace character.
-    fn parse_chunk(&mut self, chunk: &str) -> Result<(), MvelopesError> {
+    fn parse_chunk(&mut self, chunk: &str) -> Result<(), SilverFoxError> {
         if chunk.is_empty() {
             return Ok(()); // blank chunks are fine; they don't modify anything, so no error needed
         }
@@ -114,9 +114,9 @@ impl Ledger {
     }
 
     /// Parses a currency symbol
-    fn set_currency(&mut self, cur: Option<&str>) -> Result<(), MvelopesError> {
+    fn set_currency(&mut self, cur: Option<&str>) -> Result<(), SilverFoxError> {
         match cur {
-            None => Err(MvelopesError::from(ParseError {
+            None => Err(SilverFoxError::from(ParseError {
                 message: Some("no currency provided, but currency keyword was found".to_string()),
                 context: None,
             })),
@@ -127,9 +127,9 @@ impl Ledger {
         }
     }
 
-    fn set_date_format(&mut self, date_format: Option<&str>) -> Result<(), MvelopesError> {
+    fn set_date_format(&mut self, date_format: Option<&str>) -> Result<(), SilverFoxError> {
         match date_format {
-            None => Err(MvelopesError::from(ParseError {
+            None => Err(SilverFoxError::from(ParseError {
                 context: None,
                 message: Some(
                     "no date format provided, but date_format keyword was found".to_string(),
@@ -142,16 +142,16 @@ impl Ledger {
         }
     }
 
-    fn include(&mut self, file: Option<&str>) -> Result<(), MvelopesError> {
+    fn include(&mut self, file: Option<&str>) -> Result<(), SilverFoxError> {
         match file {
-            None => Err(MvelopesError::from(
+            None => Err(SilverFoxError::from(
                 ParseError::default().set_message("no file provided to an `include` clause"),
             )),
             Some(f) => self.add_from_file(&PathBuf::from(f)),
         }
     }
 
-    fn parse_entry(&mut self, chunk: &str) -> Result<(), MvelopesError> {
+    fn parse_entry(&mut self, chunk: &str) -> Result<(), SilverFoxError> {
         match Entry::parse(
             chunk,
             &self.date_format,
@@ -163,10 +163,10 @@ impl Ledger {
         }
     }
 
-    fn add_entry(&mut self, entry: Entry) -> Result<(), MvelopesError> {
+    fn add_entry(&mut self, entry: Entry) -> Result<(), SilverFoxError> {
         for (_, account) in self.accounts.iter_mut() {
             if let Err(e) = account.process_entry(&entry) {
-                return Err(MvelopesError::from(e));
+                return Err(SilverFoxError::from(e));
             }
         }
         self.entries.push(entry);
@@ -175,18 +175,18 @@ impl Ledger {
 
     /// Appends the entry to the file of the Ledger, then internally adds the Entry itself to the
     /// Ledger.
-    fn append_entry(&mut self, entry: Entry) -> Result<(), MvelopesError> {
+    fn append_entry(&mut self, entry: Entry) -> Result<(), SilverFoxError> {
         let mut file = match fs::OpenOptions::new().append(true).open(&self.file_path) {
             Ok(f) => {
                 f
             },
             Err(e) => {
-                return Err(MvelopesError::file_error(&self.file_path, e))
+                return Err(SilverFoxError::file_error(&self.file_path, e))
             }
         };
 
         if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
-            return Err(MvelopesError::from(BasicError {
+            return Err(SilverFoxError::from(BasicError {
                 message: format!("{}", e)
             }))
         }
@@ -194,7 +194,7 @@ impl Ledger {
         self.add_entry(entry)
     }
 
-    fn parse_account(&mut self, chunk: &str) -> Result<(), MvelopesError> {
+    fn parse_account(&mut self, chunk: &str) -> Result<(), SilverFoxError> {
         match Account::parse(chunk, self.decimal_symbol, &self.date_format) {
             Ok(a) => {
                 self.accounts.insert(a.get_name().to_string(), a);
@@ -204,7 +204,7 @@ impl Ledger {
         }
     }
 
-    pub fn display_flat_balance(&self) -> Result<(), MvelopesError> {
+    pub fn display_flat_balance(&self) -> Result<(), SilverFoxError> {
         let totals_map = match self.get_totals() {
             Ok(m) => m,
             Err(e) => return Err(e),
@@ -221,7 +221,7 @@ impl Ledger {
     }
 
     // TODO This can be rewritten, since totals are accounted for within the Account struct
-    fn get_totals(&self) -> Result<HashMap<String, AmountPool>, MvelopesError> {
+    fn get_totals(&self) -> Result<HashMap<String, AmountPool>, SilverFoxError> {
         // map for account names to amount pools
         let mut totals_map: HashMap<String, AmountPool> = HashMap::new();
 
@@ -243,7 +243,7 @@ impl Ledger {
                                         *pool += b;
                                     }
                                 }
-                                Err(e) => return Err(MvelopesError::from(e)),
+                                Err(e) => return Err(SilverFoxError::from(e)),
                             }
                         }
                     }
@@ -276,7 +276,7 @@ impl Ledger {
         }
     }
 
-    pub fn fill_envelopes(&mut self) -> Result<(), MvelopesError> {
+    pub fn fill_envelopes(&mut self) -> Result<(), SilverFoxError> {
         let mut postings: Vec<Posting> = Vec::new();
         for account in self.accounts.values() {
             postings.append(&mut account.get_filling_postings())
@@ -300,13 +300,13 @@ impl Ledger {
             String::from("move to envelopes"),
             None,
             postings,
-            Some(String::from("automatically generated by mvelopes"))
+            Some(String::from("automatically generated by silverfox"))
         );
 
         self.append_entry(entry)
     }
 
-    pub fn import_csv(&mut self, csv_file: &Path, rules_file: Option<&PathBuf>) -> Result<(), MvelopesError> {
+    pub fn import_csv(&mut self, csv_file: &Path, rules_file: Option<&PathBuf>) -> Result<(), SilverFoxError> {
         let account_set = self.accounts.keys().cloned().collect();
 
         let imp = match rules_file {
