@@ -11,7 +11,7 @@ pub mod utils;
 
 use std::env;
 use std::path::PathBuf;
-use errors::{MvelopesError, BasicError};
+use errors::{SilverFoxError, BasicError};
 use flags::{CommandFlags, Subcommand};
 use std::convert::TryFrom;
 use ledger::Ledger;
@@ -49,26 +49,26 @@ fn main() {
     // }
 }
 
-// fn get_mvelopes_file() -> Result<String, String> {
-//     // attempt to get from env variable $MVELOPES_FILE first
-//     match env::var("MVELOPES_FILE") {
+// fn get_silverfox_file() -> Result<String, String> {
+//     // attempt to get from env variable $SILVERFOX_FILE first
+//     match env::var("SILVERFOX_FILE") {
 //         Ok(f) => Ok(f),
 //         Err(e) => {
-//             println!("$MVELOPES_FILE variable probably doesn't exist ('{}')", e);
+//             println!("$SILVERFOX_FILE variable probably doesn't exist ('{}')", e);
 
 //             // or attempt to get sibling file to $LEDGER_FILE
 //             match get_ledger_path() {
 //                 Ok(p) => {
 //                     let parent_dir_path = p.parent();
-//                     let mvelopes_sibling_path = parent_dir_path.join("mvelopes.journal");
+//                     let silverfox_sibling_path = parent_dir_path.join("silverfox.journal");
 
-//                     match mvelopes_sibling_path.to_str() {
+//                     match silverfox_sibling_path.to_str() {
 //                         Some(p) => Ok(String::from(p)),
 //                         None => Err(String::from("Getting sibling path didn't work"))
 //                     }
 //                 },
 //                 Err(e) => {
-//                     Err(format!("mvelopes file must be provided manually, due to '{}'", e))
+//                     Err(format!("silverfox file must be provided manually, due to '{}'", e))
 //                 }
 //             }
 //         }
@@ -116,7 +116,7 @@ fn parse_flags() -> Result<CommandFlags, BasicError> {
                     },
                     _ => {
                         return Err(BasicError {
-                            message: format!("mvelopes doesn't recognize this flag: `{}`", arg)
+                            message: format!("silverfox doesn't recognize this flag: `{}`", arg)
                         })
                     }
                 }
@@ -147,7 +147,7 @@ fn parse_flags() -> Result<CommandFlags, BasicError> {
                 })
             }
             None => {
-                Err(BasicError::new("mvelopes wasn't given a file path. you can specify one with the `-f` flag or by setting the $LEDGER_FILE environment variable"))
+                Err(BasicError::new("silverfox wasn't given a file path. you can specify one with the `-f` flag or by setting the $LEDGER_FILE environment variable"))
             }
         }
     }
@@ -163,7 +163,7 @@ fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, Basic
 }
 
 fn display_help() {
-    println!("hello! i'm mvelopes! i tend to refer to myself in third person.");
+    println!("hello! i'm silverfox! i tend to refer to myself in third person.");
     println!("you can use one of the subcommands to get information about your journal:");
     println!("    (b)alance      display all accounts and their respective values");
     println!("    (e)nvelopes    view your envelopes and how much is saved up in each");
@@ -172,7 +172,7 @@ fn display_help() {
     println!("    (i)mport       parse entries from a csv file and add them to your journal");
     // println!();
     // println!("you can get more information about each subcommand with the --help flag, like so:");
-    // println!("    mvelopes b --help")
+    // println!("    silverfox b --help")
 }
 
 fn get_ledger_path() -> Option<PathBuf> {
@@ -182,7 +182,7 @@ fn get_ledger_path() -> Option<PathBuf> {
     }
 }
 
-fn execute_flags(flags: CommandFlags) -> Result<(), MvelopesError> {
+fn execute_flags(flags: CommandFlags) -> Result<(), SilverFoxError> {
     let mut ledger = match Ledger::from_file(&flags.file_path) {
         Ok(l) => l,
         Err(e) => return Err(e)
@@ -203,14 +203,14 @@ fn execute_flags(flags: CommandFlags) -> Result<(), MvelopesError> {
                     return ledger.import_csv(&c, flags.rules_file.as_ref())
                 },
                 None => {
-                    return Err(MvelopesError::from(BasicError {
+                    return Err(SilverFoxError::from(BasicError {
                         message: String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")
                     }))
                 },
             }
         }
-        _ => return Err(MvelopesError::from(BasicError {
-            message: format!("the `{}` subcommand is recognized by mvelopes, but not supported yet. sorry :(", flags.subcommand)
+        _ => return Err(SilverFoxError::from(BasicError {
+            message: format!("the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(", flags.subcommand)
         })),
     }
 

@@ -21,12 +21,12 @@ impl Account {
         chunk: &str,
         decimal_symbol: char,
         date_format: &str,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         let mut lines = chunk.lines();
         let header = match lines.next() {
             Some(l) => l,
             None => {
-                return Err(MvelopesError::from(
+                return Err(SilverFoxError::from(
                     ParseError::default()
                         .set_context(chunk)
                         .set_message("account header can't be parsed because it doesn't exist"),
@@ -59,7 +59,7 @@ impl Account {
                     )?;
 
                     if let Err(e) = account.add_envelope(new_envelope) {
-                        return Err(MvelopesError::from(e));
+                        return Err(SilverFoxError::from(e));
                     }
                 }
 
@@ -80,7 +80,7 @@ impl Account {
             )?;
 
             if let Err(e) = account.add_envelope(new_envelope) {
-                return Err(MvelopesError::from(e));
+                return Err(SilverFoxError::from(e));
             }
         }
 

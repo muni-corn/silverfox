@@ -17,7 +17,7 @@ impl CsvImporter {
     pub fn from_file(
         csv_file: &Path,
         ledger_account_set: HashSet<String>,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         let rules_file = Self::get_sibling_rules_path(csv_file);
 
         Self::from_file_with_rules(csv_file, &rules_file, ledger_account_set)
@@ -31,9 +31,9 @@ impl CsvImporter {
         csv_file: &Path,
         rules_file: &Path,
         ledger_account_set: HashSet<String>,
-    ) -> Result<Self, MvelopesError> {
-        let csv_str = fs::read_to_string(csv_file).map_err(|e| MvelopesError::file_error(csv_file, e))?;
-        let rules_str = fs::read_to_string(rules_file).map_err(|e| MvelopesError::file_error(rules_file, e))?;
+    ) -> Result<Self, SilverFoxError> {
+        let csv_str = fs::read_to_string(csv_file).map_err(|e| SilverFoxError::file_error(csv_file, e))?;
+        let rules_str = fs::read_to_string(rules_file).map_err(|e| SilverFoxError::file_error(rules_file, e))?;
 
         Self::from_strs(&csv_str, &rules_str, ledger_account_set)
     }
@@ -42,7 +42,7 @@ impl CsvImporter {
         csv_str: &str,
         rules_str: &str,
         ledger_account_set: HashSet<String>,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .from_reader(csv_str.as_bytes());
@@ -53,7 +53,7 @@ impl CsvImporter {
             match result {
                 Ok(r) => records.push_back(r),
                 Err(e) => {
-                    return Err(MvelopesError::from(ParseError {
+                    return Err(SilverFoxError::from(ParseError {
                         message: Some(format!("there was an error reading csv records: {}", e)),
                         context: None,
                     }))
@@ -70,7 +70,7 @@ impl CsvImporter {
 }
 
 impl Iterator for CsvImporter {
-    type Item = Result<Entry, MvelopesError>;
+    type Item = Result<Entry, SilverFoxError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.records.pop_front() {
@@ -124,7 +124,7 @@ impl Default for Rules {
 }
 
 impl Rules {
-    pub fn from_str(rules_str: &str) -> Result<Self, MvelopesError> {
+    pub fn from_str(rules_str: &str) -> Result<Self, SilverFoxError> {
         let mut rules: Rules = Default::default();
         if let Err(e) = rules.add_from_str(rules_str) {
             Err(e)
@@ -133,13 +133,13 @@ impl Rules {
         }
     }
 
-    fn add_from_file(&mut self, rules_file: &Path) -> Result<(), MvelopesError> {
-        let s = fs::read_to_string(rules_file).map_err(|e| MvelopesError::file_error(rules_file, e))?;
+    fn add_from_file(&mut self, rules_file: &Path) -> Result<(), SilverFoxError> {
+        let s = fs::read_to_string(rules_file).map_err(|e| SilverFoxError::file_error(rules_file, e))?;
 
         self.add_from_str(&s)
     }
 
-    fn add_from_str(&mut self, s: &str) -> Result<(), MvelopesError> {
+    fn add_from_str(&mut self, s: &str) -> Result<(), SilverFoxError> {
         // Some if parsing a Subrules. None if parsing other things.
         let mut parsing_subrules: Option<Subrules> = None;
         let mut parsing_subrules_rules = false;
@@ -217,13 +217,13 @@ impl Rules {
         Ok(())
     }
 
-    fn add_from_line(&mut self, mut line: &str) -> Result<(), MvelopesError> {
+    fn add_from_line(&mut self, mut line: &str) -> Result<(), SilverFoxError> {
         line = line.trim_start();
 
         let split_index =
             match line.chars().position(|c| c.is_whitespace()) {
                 Some(i) => i,
-                None => return Err(MvelopesError::from(ParseError {
+                None => return Err(SilverFoxError::from(ParseError {
                     message: Some(format!(
                         "this rule has no value. use `-` if you want to discard a value:\n\n{} -",
                         line.trim()
@@ -247,7 +247,7 @@ impl Rules {
                 "decimal_symbol" | "decimal" => self.decimal_symbol = '.',
                 "description" => self.description = String::from("%description%"),
                 "fields" => {
-                    return Err(MvelopesError::from(ValidationError {
+                    return Err(SilverFoxError::from(ValidationError {
                         message: Some(String::from("`fields` cannot be discarded; a value is required")),
                         context: None,
                     }))
@@ -256,7 +256,7 @@ impl Rules {
                     // because root-level subrules should be handled by add_from_str, this should not
                     // be called unless rules are being added line by line, which is what happens when
                     // parsing Subrules
-                    return Err(MvelopesError::from(
+                    return Err(SilverFoxError::from(
                         ParseError::default().set_message("nested subrules aren't allowed"),
                     ));
                 }
@@ -273,9 +273,9 @@ impl Rules {
                         let index_str = &rule_name["account".len()..];
                         self.accounts.remove(&String::from(index_str));
                     } else {
-                        return Err(MvelopesError::from(ParseError {
+                        return Err(SilverFoxError::from(ParseError {
                             message: Some(format!(
-                                "`{}` is not a rule that mvelopes understands",
+                                "`{}` is not a rule that silverfox understands",
                                 rule_name
                             )),
                             context: Some(line.to_string()),
@@ -291,7 +291,7 @@ impl Rules {
                 "date" => self.date_str = rule_value,
                 "decimal_symbol" | "decimal" => {
                     if rule_value.len() > 1 {
-                        return Err(MvelopesError::from(
+                        return Err(SilverFoxError::from(
                             ParseError::default()
                                 .set_message("decimal_symbol should be a single character")
                                 .set_context(line),
@@ -310,7 +310,7 @@ impl Rules {
                     // because root-level subrules should be handled by add_from_str, this should not
                     // be called unless rules are being added line by line, which is what happens when
                     // parsing Subrules
-                    return Err(MvelopesError::from(
+                    return Err(SilverFoxError::from(
                         ParseError::default().set_message("nested subrules aren't allowed"),
                     ));
                 }
@@ -320,7 +320,7 @@ impl Rules {
                     self.skip =
                         match rule_value.parse::<i32>() {
                             Ok(n) => n,
-                            Err(e) => return Err(MvelopesError::from(ParseError {
+                            Err(e) => return Err(SilverFoxError::from(ParseError {
                                 message: Some(format!(
                                     "the `skip` rule couldn't be parsed because of this error: {}",
                                     e
@@ -341,9 +341,9 @@ impl Rules {
                         let index_str = &rule_name["account".len()..];
                         self.accounts.insert(String::from(index_str), rule_value);
                     } else {
-                        return Err(MvelopesError::from(ParseError {
+                        return Err(SilverFoxError::from(ParseError {
                             message: Some(format!(
-                                "`{}` is not a rule that mvelopes understands",
+                                "`{}` is not a rule that silverfox understands",
                                 rule_name
                             )),
                             context: Some(line.to_string()),
@@ -360,7 +360,7 @@ impl Rules {
         &mut self,
         record: &csv::StringRecord,
         account_set: &HashSet<&String>,
-    ) -> Result<Entry, MvelopesError> {
+    ) -> Result<Entry, SilverFoxError> {
         // if any subrules apply to this record, use those rules instead
         for subrules in self.subrules.iter_mut() {
             if subrules.applies_to(record) {
@@ -384,7 +384,7 @@ impl Rules {
         for (field_name, field_value) in self.fields.iter().zip(record.iter()) {
             // no duplicate variables are allowed
             if variables.contains_key(field_name) {
-                return Err(MvelopesError::from(ParseError {
+                return Err(SilverFoxError::from(ParseError {
                     message: Some(format!(
                         "there is a duplicate field definition in your rules file: `{}`",
                         field_name
@@ -401,7 +401,7 @@ impl Rules {
         let date = match chrono::NaiveDate::parse_from_str(&raw_date, &self.date_format) {
             Ok(d) => d,
             Err(e) => {
-                return Err(MvelopesError::from(ParseError {
+                return Err(SilverFoxError::from(ParseError {
                     message: Some(format!(
                         "there was an error parsing `{}` with the format `{}`: {}",
                         raw_date, self.date_format, e
@@ -464,11 +464,11 @@ impl Rules {
 
                     Ok(Entry::new(date, status, description, payee, postings, comment))
                 } else {
-                    Err(MvelopesError::from(ValidationError::default().set_message("an entry with only one posting was generated, and that posting had a blank amount. make sure you've included an `amount` rule")))
+                    Err(SilverFoxError::from(ValidationError::default().set_message("an entry with only one posting was generated, and that posting had a blank amount. make sure you've included an `amount` rule")))
                 }
             },
             0 => {
-                Err(MvelopesError::from(ValidationError::default().set_context(record.as_slice()).set_message("this record produced an entry without any postings. make sure you've included rules for `account` and `amount` so that postings can be generated")))
+                Err(SilverFoxError::from(ValidationError::default().set_context(record.as_slice()).set_message("this record produced an entry without any postings. make sure you've included rules for `account` and `amount` so that postings can be generated")))
             },
             _ => {
                 Ok(Entry::new(date, status, description, payee, postings, comment))

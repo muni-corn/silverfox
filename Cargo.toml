@@ -1,5 +1,5 @@
 [package]
-name = "mvelopes"
+name = "silverfox"
 version = "0.1.0"
 authors = ["Harrison Thorne <harrison.thorne@gmail.com>"]
 edition = "2018"
