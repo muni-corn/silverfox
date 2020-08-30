@@ -1,42 +1,42 @@
-# mvelopes
+# silverfox
 
-mvelopes is a command-line double-entry plain-text
+silverfox is a command-line double-entry plain-text
 rootin-tootin accounting tool like ledger-cli or hledger.
-But unlike other plain-text accounting tools, mvelopes is
+But unlike other plain-text accounting tools, silverfox is
 designed around "envelope budgeting". Its main concern is
 helping you budget without overspending as well as keeping a
 good record of your finances.
 
 ## Foreword
 
-mvelopes has matured some and is ready for basic ledger
+silverfox has matured some and is ready for basic ledger
 parsing, balance reporting, and envelope use. Give it a try!
 
-Since mvelopes is so new, it lacks a lot of features that
+Since silverfox is so new, it lacks a lot of features that
 other plain-text accounting tools have, so please feel free
 to open new issues as your needs arise. I'm also open to new
 ideas and to implement new features that other plain-text
 accounting tools don't have. I look forward to hearing your
 ideas and requests!
 
-## What sets mvelopes apart from other tools?
+## What sets silverfox apart from other tools?
 
 ### Expenses, savings goals, and more
 
-mvelopes works by moving money from your available balances
+silverfox works by moving money from your available balances
 into "envelopes" every day. Little by little (or lots by
 lots), it puts money towards anything you might be spending
 money on: rent, electricity, or a new boat (whatever; you
 name it).
 
-For any recurring expenses, mvelopes keeps two envelopes:
+For any recurring expenses, silverfox keeps two envelopes:
 one for what's ready to be spent, and another for the next
 time an expense is due. This ensures a separation of
 concerns from due date to due date.
 
 #### Methods of saving money
 
-mvelopes lets you choose from two methods of automatically
+silverfox lets you choose from two methods of automatically
 moving money into envelopes: aggressive or conservative.
 Aggressive saving moves as much money as possible into
 envelopes as soon as possible. Conservative saving moves
@@ -57,12 +57,12 @@ statuses:
 *       Reconciled
 ```
 
-mvelopes will let you know if a transaction is not marked
+silverfox will let you know if a transaction is not marked
 with one of these statuses.
 
 ### Required account definitions
 
-mvelopes requires you to define a list of accounts. You can
+silverfox requires you to define a list of accounts. You can
 use the `account` property to do this:
 
 ```
@@ -76,7 +76,7 @@ account income:salary
 account income:gifts
 ```
 
-Accounts in mvelopes can't include spaces in their names.
+Accounts in silverfox can't include spaces in their names.
 Instead, underscores should be used:
 
 ```
@@ -86,14 +86,14 @@ account liabilities:credit_card
 
 ### Speedy!
 
-mvelopes will try to be as fast as possible, which will
+silverfox will try to be as fast as possible, which will
 hopefully come in handy for big ledgers. Eventually,
-mvelopes will take advantage of concurrency to process
+silverfox will take advantage of concurrency to process
 transactions as fast as possible.
 
 ## Journal format
 
-If you've used ledger-cli or hledger, mvelopes uses a
+If you've used ledger-cli or hledger, silverfox uses a
 similar formatting syntax for journals:
 
 ```
@@ -111,20 +111,20 @@ More specifically:
 ```
 
 `<payee>` is not required, but if provided in square
-brackets as above, can be queried by mvelopes.
+brackets as above, can be queried by silverfox.
 
-> Note: While mvelopes has formatting extremely similar to
-> hledger or ledger-cli, an mvelopes file is not necessarily
+> Note: While silverfox has formatting extremely similar to
+> hledger or ledger-cli, an silverfox file is not necessarily
 > compatible with an hledger or ledger-cli file. You'll
 > notice that (for example) an equal sign (=) in a posting
 > (an account-amount line in a transaction entry) has two
-> very different meanings between hledger and mvelopes:
-> hledger uses it for balance assertions, and mvelopes uses
+> very different meanings between hledger and silverfox:
+> hledger uses it for balance assertions, and silverfox uses
 > it for cost assertions.
 
 ### Comments
 
-Comments in mvelopes are done with either a semicolon (`;`)
+Comments in silverfox are done with either a semicolon (`;`)
 or a double-slash (`//`).
 
 ```
@@ -139,7 +139,7 @@ or a double-slash (`//`).
 
 ### Currencies and prices
 
-If a currency symbol isn't included, mvelopes considers it
+If a currency symbol isn't included, silverfox considers it
 your default currency. You can include currency symbols in
 your transaction:
 
@@ -149,7 +149,7 @@ your transaction:
     assets:crypto:btc       0.012345 BTC
 ```
 
-Note that in the above transaction, mvelopes will
+Note that in the above transaction, silverfox will
 automatically balance and infer that the total cost of
 0.012345 BTC (Bitcoin) was \$100. You can define the total
 cost of BTC manually as well:
@@ -169,14 +169,14 @@ Or, you can define the price per unit:
 ```
 
 If you mix amounts without a currency symbol and amounts
-with your preferred currency symbol, you can tell mvelopes
+with your preferred currency symbol, you can tell silverfox
 which currency symbol you use:
 
 ```
 currency $
 ```
 
-mvelopes will combine amounts with blank symbols and with
+silverfox will combine amounts with blank symbols and with
 the specified symbol.
 
 ### Balance assertions
@@ -216,7 +216,7 @@ total balance of the account:
 ### Configuration
 
 Here's an example of how to configure envelopes with
-mvelopes. Envelopes are created under asset accounts:
+silverfox. Envelopes are created under asset accounts:
 
 ```
 account assets:checking
@@ -235,7 +235,7 @@ account assets:checking
                                                 // accounts aren't required
 ```
 
-> Note: the `funding` option is optional. If omitted, mvelopes
+> Note: the `funding` option is optional. If omitted, silverfox
 > won't move money automatically. 
 
 If you want to delay the starting date for an envelope, you
@@ -249,7 +249,7 @@ account assets:checking
 ```
 
 If you opt for the frequency of an envelope to be `every
-other` something, `starting` is required (so mvelopes can
+other` something, `starting` is required (so silverfox can
 know which weeks and months to use):
 
 ```
@@ -277,7 +277,7 @@ account assets:savings
 Really, the `expense` and `goal` keywords are both
 interchangeable. They do the same thing. And, as mentioned,
 `due`, `by`, and even `due by` are the same. But not `by
-due`. That makes no sense. mvelopes will throw an error.
+due`. That makes no sense. silverfox will throw an error.
 
 A couple of other points to note:
 
@@ -294,7 +294,7 @@ A couple of other points to note:
     envelope food
 ```
 
-mvelopes infers that this transaction should take money from
+silverfox infers that this transaction should take money from
 the `food` envelope under the `assets:checking` account.
 
 Of course, things can get a little more complicated:
@@ -308,8 +308,8 @@ Of course, things can get a little more complicated:
 ```
 
 If `assets:checking` and `assets:cash` both have `food`
-envelopes, mvelopes can't infer which account from which to
-use an envelope. We tell mvelopes which envelope to use (and
+envelopes, silverfox can't infer which account from which to
+use an envelope. We tell silverfox which envelope to use (and
 how much money) with this syntax:
 
 ```
