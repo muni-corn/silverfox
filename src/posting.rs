@@ -112,7 +112,7 @@ impl Posting {
         mut line: &str,
         decimal_symbol: char,
         accounts: &HashSet<&String>,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         // match first token, to decide on parsing an envelope posting or a classic posting
         line = utils::remove_comments(line).trim();
         match line.split_whitespace().next() {
@@ -131,7 +131,7 @@ impl Posting {
                     )?))
                 }
             }
-            None => Err(MvelopesError::from(
+            None => Err(SilverFoxError::from(
                 ParseError::default().set_message("nothing to parse for a Posting"),
             )),
         }
@@ -230,7 +230,7 @@ impl ClassicPosting {
         line: &str,
         decimal_symbol: char,
         accounts: &HashSet<&String>,
-    ) -> Result<Self, MvelopesError> {
+    ) -> Result<Self, SilverFoxError> {
         let mut posting = Self::blank();
 
         // remove comments and other impurities
@@ -242,11 +242,11 @@ impl ClassicPosting {
         amount_tokens = tokens[1..].to_vec();
 
         if let Err(e) = posting.parse_amount(&amount_tokens, decimal_symbol) {
-            Err(MvelopesError::from(e))
+            Err(SilverFoxError::from(e))
         } else if let Err(e) = posting.parse_assertion_amounts(&amount_tokens, decimal_symbol) {
-            Err(MvelopesError::from(e))
+            Err(SilverFoxError::from(e))
         } else if let Err(e) = posting.validate(&accounts) {
-            Err(MvelopesError::from(e))
+            Err(SilverFoxError::from(e))
         } else {
             Ok(posting)
         }

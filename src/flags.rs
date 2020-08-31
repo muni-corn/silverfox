@@ -165,8 +165,8 @@ impl TryFrom<&str> for Subcommand {
                     })
             }
         } else {
-            Err(BasicError {
-                message: String::from("empty string provided when parsing subcommand")
+            Err(errors::BasicError {
+                message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
             })
         }
     }

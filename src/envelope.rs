@@ -136,7 +136,7 @@ impl Frequency {
             if starting_date.is_none() {
                 return Err(ParseError {
                     context: Some(s.to_string()),
-                    message: Some("a `starting` clause is required for `every other` frequencies so mvelopes knows which weeks or months to use".to_string())
+                    message: Some("a `starting` clause is required for `every other` frequencies so silverfox knows which weeks or months to use".to_string())
                 });
             }
 
@@ -166,7 +166,7 @@ impl Frequency {
             } else if what == "year" {
                 match starting_date {
                     Some(d) => Ok(Self::Annually(d)),
-                    None => Err(ParseError::default().set_context(s).set_message("envelopes due annually require a `starting` date so that mvelopes knows which day of the year the envelope is due"))
+                    None => Err(ParseError::default().set_context(s).set_message("envelopes due annually require a `starting` date so that silverfox knows which day of the year the envelope is due"))
                 }
             } else {
                 Err(ParseError::default()
@@ -500,7 +500,7 @@ impl Envelope {
                     }
                     _ => {
                         return Err(ParseError::default().set_message(
-                            format!("the `{}` property isn't understood by mvelopes", key).as_str(),
+                            format!("the `{}` property isn't understood by silverfox", key).as_str(),
                         ))
                     }
                 }
@@ -637,10 +637,10 @@ impl Envelope {
     }
 
     fn infer(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
-        // attempt to infer. mvelopes can infer when postings for the account of the envelope and
+        // attempt to infer. silverfox can infer when postings for the account of the envelope and
         // *exactly one* of its `auto_accounts` exist
         //
-        // otherwise, mvelopes will throw an error and manual intervention is required
+        // otherwise, silverfox will throw an error and manual intervention is required
 
         // we should first check that at least one auto account and at least one self account
         // exists
@@ -695,7 +695,7 @@ impl Envelope {
                 if self.amount.symbol.is_some() {
                     // can't infer because the envelope has a foreign currency, and this posting
                     // can't be converted to it
-                    let message = format!("the envelope `{}` in `{}` was set up with a currency that isn't your native currency. furthermore, this entry contains postings with accounts that relate to the envelope, but mvelopes could not move money automatically because the postings use currencies that cannot be converted to the currency of the envelope. hopefully that all makes sense!", self.name, self.account);
+                    let message = format!("the envelope `{}` in `{}` was set up with a currency that isn't your native currency. furthermore, this entry contains postings with accounts that relate to the envelope, but silverfox could not move money automatically because the postings use currencies that cannot be converted to the currency of the envelope. hopefully that all makes sense!", self.name, self.account);
                     return Err(ProcessingError {
                         message: Some(message),
                         context: Some(entry.display()),
@@ -707,7 +707,7 @@ impl Envelope {
                         },
                         None => {
                             return Err(ProcessingError::default()
-                                .set_message("mvelopes wants to infer how much money to move to or from an envelope, but can't; you'll need to specify a manual envelope posting here with the correct amount")
+                                .set_message("silverfox wants to infer how much money to move to or from an envelope, but can't; you'll need to specify a manual envelope posting here with the correct amount")
                                 .set_context(entry.display().as_str())
                             )
                         }
