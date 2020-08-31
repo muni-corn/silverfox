@@ -138,9 +138,7 @@ impl Entry {
         }
 
         // validate this entry
-        if let Err(e) = entry.validate(chunk) {
-            return Err(SilverFoxError::from(e));
-        }
+        entry.validate(chunk)?;
 
         Ok(entry)
     }
@@ -150,7 +148,7 @@ impl Entry {
         let header_tokens = clean_header.split_whitespace().collect::<Vec<&str>>();
 
         if header_tokens.is_empty() {
-            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank. this is an error with silverfox's programming; please report it!"));
+            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank.\nthis is an error with silverfox's programming; please report it!"));
         }
 
         // parse date
@@ -205,7 +203,6 @@ impl Entry {
             // return None if the Entry has no blank amount
             Ok(None)
         } else {
-
             // calculation of the blank amount depends on whether or not multiple currencies exist
             if self.has_mixed_currencies() {
                 // if multiple currencies exist, attempt to return the sum of the native amounts.
@@ -219,7 +216,7 @@ impl Entry {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
-                                let err = ProcessingError::default().set_message("silverfox couldn't infer a value for an entry's blank posting amount. there are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                let err = ProcessingError::default().set_message("silverfox couldn't infer a value for an entry's blank posting amount.\nthere are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
                                 return Err(err);
                             }
                         }
@@ -350,7 +347,7 @@ impl Entry {
     pub fn has_envelope_posting(&self) -> bool {
         for posting in &self.postings {
             if posting.is_envelope() {
-                return true
+                return true;
             }
         }
 
@@ -380,7 +377,7 @@ impl Entry {
                 };
 
                 if posting_symbol != symbol_to_match {
-                    return true
+                    return true;
                 }
             }
 
@@ -468,7 +465,7 @@ mod tests {
                 assert_eq!(
                     e.description,
                     String::from("Groceries"),
-                    "description was not parse correctly"
+                    "description was not parsed correctly"
                 );
                 assert_eq!(
                     e.payee,
