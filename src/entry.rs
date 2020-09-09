@@ -519,14 +519,14 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 }
 
 pub struct EntryRegisterData {
-    date: String,
-    status: char,
-    description: String,
-    payee: String,
-    account_flow: (String, String),       // from, to
-    short_account_flow: (String, String), // from, to
-    single_account_display: String,
-    amounts: AmountPool,
+    pub date: String,
+    pub status: char,
+    pub description: String,
+    pub payee: String,
+    pub account_flow: (String, String),       // from, to
+    pub short_account_flow: (String, String), // from, to
+    pub single_account_display: String,
+    pub amounts: AmountPool,
 }
 
 #[cfg(test)]
