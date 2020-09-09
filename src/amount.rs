@@ -1,7 +1,7 @@
 use crate::errors::*;
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
+use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 #[derive(Clone, Debug)]
 pub struct Amount {
@@ -77,9 +77,9 @@ impl Amount {
 
     pub fn display(&self) -> String {
         let mag_fmt: String = if self.mag < 0.0 {
-            format!("{}", (self.mag*100_000_000.0).round() / 100_000_000.0)
+            format!("{}", (self.mag * 100_000_000.0).round() / 100_000_000.0)
         } else {
-            format!(" {}", (self.mag*100_000_000.0).round() / 100_000_000.0)
+            format!(" {}", (self.mag * 100_000_000.0).round() / 100_000_000.0)
         };
 
         if let Some(s) = &self.symbol {
@@ -98,14 +98,15 @@ impl fmt::Display for Amount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.display())
     }
-
 }
 
 impl Ord for Amount {
     fn cmp(&self, other: &Self) -> Ordering {
         assert_eq!(self.symbol, other.symbol, "tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them.", self, other);
 
-        self.mag.partial_cmp(&other.mag).unwrap_or(std::cmp::Ordering::Equal)
+        self.mag
+            .partial_cmp(&other.mag)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -242,7 +243,7 @@ impl Add<&Amount> for AmountPool {
         match iter.find(|a| a.symbol == amount.symbol) {
             Some(a) => {
                 *a += amount;
-            },
+            }
             None => {
                 self.pool.push(amount.clone());
             }
@@ -266,7 +267,7 @@ impl AddAssign<&Amount> for AmountPool {
         match iter.find(|a| a.symbol == amount.symbol) {
             Some(a) => {
                 *a += amount;
-            },
+            }
             None => {
                 self.pool.push(amount.clone());
             }
@@ -288,7 +289,7 @@ impl SubAssign<&Amount> for AmountPool {
         match iter.find(|a| a.symbol == amount.symbol) {
             Some(a) => {
                 *a -= amount;
-            },
+            }
             None => {
                 self.pool.push(-amount.clone());
             }
@@ -296,6 +297,15 @@ impl SubAssign<&Amount> for AmountPool {
     }
 }
 
+impl IntoIterator for AmountPool {
+    type Item = Amount;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.pool.into_iter()
+    }
+}
 
 impl AmountPool {
     pub fn size(&self) -> usize {
@@ -307,27 +317,37 @@ impl AmountPool {
     }
 
     pub fn only(&self, symbol: &Option<String>) -> Amount {
-        self.pool.iter().find(|a| a.symbol == *symbol).unwrap_or(&Amount::zero()).clone()
+        self.pool
+            .iter()
+            .find(|a| a.symbol == *symbol)
+            .unwrap_or(&Amount::zero())
+            .clone()
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, Amount> {
         self.pool.iter()
     }
+
+    pub fn is_zero(&self) -> bool {
+        for amt in self.pool {
+            if amt.mag > 0.0 {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl Default for AmountPool {
     fn default() -> Self {
-        Self {
-            pool: Vec::new()
-        }
+        Self { pool: Vec::new() }
     }
 }
 
 impl From<Amount> for AmountPool {
     fn from(amount: Amount) -> Self {
-        Self {
-            pool: vec![amount]
-        }
+        Self { pool: vec![amount] }
     }
 }
 
