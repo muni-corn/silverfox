@@ -1,4 +1,4 @@
-use crate::amount::Amount;
+use crate::amount::{Amount, AmountPool};
 use crate::errors::*;
 use crate::posting::Posting;
 use crate::utils;
@@ -20,6 +20,14 @@ impl EntryStatus {
     pub fn from_char(c: char) -> Result<Self, ParseError> {
         Self::from_str(&format!("{}", c))
     }
+
+    pub fn to_char(&self) -> char {
+        match self {
+            EntryStatus::Reconciled => '*',
+            EntryStatus::Cleared => '~',
+            EntryStatus::Pending => '?',
+        }
+    }
 }
 
 impl FromStr for EntryStatus {
@@ -40,13 +48,7 @@ impl FromStr for EntryStatus {
 
 impl fmt::Display for EntryStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let symbol = match self {
-            EntryStatus::Reconciled => '*',
-            EntryStatus::Cleared => '~',
-            EntryStatus::Pending => '?',
-        };
-
-        write!(f, "{}", symbol)
+        write!(f, "{}", self.to_char())
     }
 }
 
@@ -216,7 +218,10 @@ impl Entry {
                             // native_value will be None for the blank amount, so only throw an
                             // error if the posting's amount is Some
                             if posting.get_amount().is_some() {
-                                let err = ProcessingError::default().set_message("silverfox couldn't infer a value for an entry's blank posting amount.\nthere are multiple currencies in this entry, but one posting does not provide its currency's worth in your native currency.").set_context(&self.display());
+                                let err = ProcessingError::default().set_message(
+                                    "silverfox couldn't infer a value for an entry's blank posting amount. there are
+multiple currencies in this entry, but one posting does not provide its
+currency's worth in your native currency.").set_context(&self.as_full_string());
                                 return Err(err);
                             }
                         }
@@ -296,7 +301,7 @@ impl Entry {
         Ok(())
     }
 
-    pub fn display(&self) -> String {
+    pub fn as_full_string(&self) -> String {
         let payee = if let Some(p) = &self.payee {
             p
         } else {
@@ -385,6 +390,91 @@ impl Entry {
         }
     }
 
+    pub fn as_register_data(
+        &self,
+        account_match: Option<String>,
+        date_format: &str,
+        decimal_symbol: char,
+        is_account_name_focused_fn: Box<dyn Fn(&str) -> bool>,
+    ) -> Result<Option<EntryRegisterData>, ProcessingError> {
+        let (positive_name, negative_name, amounts) = {
+            let positive_names = HashSet::new();
+            let negative_names = HashSet::new();
+            let focused_amount = AmountPool::new();
+
+            for p in self.postings {
+                let name = p.get_account();
+                let amount = if let Some(a) = p.get_amount() {
+                    a
+                } else {
+                    &self.get_blank_amount()?.unwrap()
+                };
+
+                if amount.mag > 0.0 {
+                    positive_names.insert(name);
+                } else if amount.mag < 0.0 {
+                    negative_names.insert(name);
+                }
+
+                if is_account_name_focused_fn(name) {
+                    focused_amount += amount;
+                }
+            }
+
+            if focused_amount.is_zero() {
+                // if there are no focused accounts in this entry, we won't
+                // worry about this entry's output
+                return Ok(None);
+            }
+
+            let positive_name = match positive_names.len() {
+                0 => "(none)".to_string(),
+                1 => *positive_names.iter().next().unwrap().to_owned(),
+                _ => "(multiple)".to_string(),
+            };
+
+            let negative_name = match negative_names.len() {
+                0 => "(none)".to_string(),
+                1 => *negative_names.iter().next().unwrap().to_owned(),
+                _ => "(multiple)".to_string(),
+            };
+
+            (positive_name, negative_name, focused_amount)
+        };
+
+        let account_flow = (negative_name, positive_name);
+        let short_account_flow = (
+            negative_name.split(':').last().unwrap().to_string(),
+            positive_name.split(':').last().unwrap().to_string(),
+        );
+        let single_account_display = {
+            if !is_account_name_focused_fn(&positive_name) {
+                positive_name.split(':').last().unwrap()
+            } else if !is_account_name_focused_fn(&negative_name) {
+                negative_name.split(':').last().unwrap()
+            } else {
+                // both positive and negative accounts are focused, so this is
+                // probably a conversion
+                "(conversion)"
+            }
+        }
+        .to_string();
+
+        Ok(Some(EntryRegisterData {
+            date: self.date.format(date_format).to_string(),
+            status: self.status.to_char(),
+            description: self.description.clone(),
+            payee: self
+                .payee
+                .map(|p| format!("[{}]", p))
+                .unwrap_or_else(|| "".to_string()),
+            account_flow,
+            short_account_flow,
+            single_account_display,
+            amounts,
+        }))
+    }
+
     pub fn as_parsable(&self, date_format: &str) -> String {
         let date = self.date.format(date_format);
 
@@ -428,10 +518,15 @@ impl Entry {
     }
 }
 
-impl fmt::Display for Entry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.display())
-    }
+pub struct EntryRegisterData {
+    date: String,
+    status: char,
+    description: String,
+    payee: String,
+    account_flow: (String, String),       // from, to
+    short_account_flow: (String, String), // from, to
+    single_account_display: String,
+    amounts: AmountPool,
 }
 
 #[cfg(test)]
