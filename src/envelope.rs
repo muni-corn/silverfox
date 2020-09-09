@@ -2,7 +2,7 @@ use crate::amount::{Amount, AmountPool};
 use crate::entry::Entry;
 use crate::errors::ParseError;
 use crate::errors::ProcessingError;
-use crate::posting::{Posting, EnvelopePosting};
+use crate::posting::{EnvelopePosting, Posting};
 use crate::utils;
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
@@ -487,7 +487,7 @@ impl Envelope {
                                 self.amount = a;
                                 self.next_amount.symbol = self.amount.symbol.clone();
                                 self.now_amount.symbol = self.amount.symbol.clone();
-                            },
+                            }
                             Err(e) => return Err(e),
                         }
                     }
@@ -500,7 +500,8 @@ impl Envelope {
                     }
                     _ => {
                         return Err(ParseError::default().set_message(
-                            format!("the `{}` property isn't understood by silverfox", key).as_str(),
+                            format!("the `{}` property isn't understood by silverfox", key)
+                                .as_str(),
                         ))
                     }
                 }
@@ -623,7 +624,9 @@ impl Envelope {
 
             if let Posting::Envelope(envelope_posting) = posting {
                 // this posting can only apply if the accounts match
-                if envelope_posting.get_account_name() == &self.account && &self.name == envelope_posting.get_envelope_name() {
+                if envelope_posting.get_account_name() == &self.account
+                    && &self.name == envelope_posting.get_envelope_name()
+                {
                     // now, everything depends on the amount and date
 
                     let amount = envelope_posting.get_amount();
@@ -662,7 +665,7 @@ impl Envelope {
             return Ok(());
         }
 
-        // declare sums
+        // initialize sums
         let mut auto_postings_sum = Amount {
             mag: 0.0,
             symbol: self.amount.symbol.clone(),
@@ -695,10 +698,16 @@ impl Envelope {
                 if self.amount.symbol.is_some() {
                     // can't infer because the envelope has a foreign currency, and this posting
                     // can't be converted to it
-                    let message = format!("the envelope `{}` in `{}` was set up with a currency that isn't your native currency. furthermore, this entry contains postings with accounts that relate to the envelope, but silverfox could not move money automatically because the postings use currencies that cannot be converted to the currency of the envelope. hopefully that all makes sense!", self.name, self.account);
+                    let message = format!(
+"the envelope `{}` in `{}` was set up with a currency that isn't your native
+currency. furthermore, this entry contains postings with accounts that relate to
+the envelope, but silverfox could not move money automatically because the
+postings use currencies that cannot be converted to the currency of the
+envelope. hopefully that all makes sense!", self.name, self.account);
+
                     return Err(ProcessingError {
                         message: Some(message),
-                        context: Some(entry.display()),
+                        context: Some(entry.as_full_string()),
                     });
                 } else {
                     match posting.get_original_native_value() {
@@ -707,8 +716,11 @@ impl Envelope {
                         },
                         None => {
                             return Err(ProcessingError::default()
-                                .set_message("silverfox wants to infer how much money to move to or from an envelope, but can't; you'll need to specify a manual envelope posting here with the correct amount")
-                                .set_context(entry.display().as_str())
+                                .set_message(
+"silverfox wants to infer how much money to move to or from an envelope, but
+can't; you'll need to specify a manual envelope posting here with the correct
+amount")
+                                .set_context(entry.as_full_string().as_str())
                             )
                         }
                     }
