@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 
 // TODO auto-fixable errors?
 
-/// SilverFoxError is an enum for all possible custom errors that silverfox can throw. It is a
+/// SilverfoxError is an enum for all possible custom errors that silverfox can throw. It is a
 /// wrapper of sorts.
-pub enum SilverFoxError {
+pub enum SilverfoxError {
     Basic(BasicError),
     Parse(ParseError),
     Validation(ValidationError),
@@ -14,50 +14,50 @@ pub enum SilverFoxError {
     Csv(csv::Error),
 }
 
-impl From<BasicError> for SilverFoxError {
+impl From<BasicError> for SilverfoxError {
     fn from(err: BasicError) -> Self {
         Self::Basic(err)
     }
 }
 
-impl From<ParseError> for SilverFoxError {
+impl From<ParseError> for SilverfoxError {
     fn from(err: ParseError) -> Self {
         Self::Parse(err)
     }
 }
 
-impl From<ValidationError> for SilverFoxError {
+impl From<ValidationError> for SilverfoxError {
     fn from(err: ValidationError) -> Self {
         Self::Validation(err)
     }
 }
 
-impl From<ProcessingError> for SilverFoxError {
+impl From<ProcessingError> for SilverfoxError {
     fn from(err: ProcessingError) -> Self {
         Self::Processing(err)
     }
 }
 
-impl From<csv::Error> for SilverFoxError {
+impl From<csv::Error> for SilverfoxError {
     fn from(err: csv::Error) -> Self {
         Self::Csv(err)
     }
 }
 
-impl fmt::Display for SilverFoxError {
+impl fmt::Display for SilverfoxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SilverFoxError::Basic(b) => b.fmt(f),
-            SilverFoxError::Validation(v) => v.fmt(f),
-            SilverFoxError::Parse(p) => p.fmt(f),
-            SilverFoxError::Processing(p) => p.fmt(f),
-            SilverFoxError::File(p, e) => write!(f, "silverfox encountered an i/o error: {}\n(file: {})", e, p.display()),
-            SilverFoxError::Csv(c) => c.fmt(f),
+            SilverfoxError::Basic(b) => b.fmt(f),
+            SilverfoxError::Validation(v) => v.fmt(f),
+            SilverfoxError::Parse(p) => p.fmt(f),
+            SilverfoxError::Processing(p) => p.fmt(f),
+            SilverfoxError::File(p, e) => write!(f, "silverfox encountered an i/o error: {}\n(file: {})", e, p.display()),
+            SilverfoxError::Csv(c) => c.fmt(f),
         }
     }
 }
 
-impl SilverFoxError {
+impl SilverfoxError {
     pub fn file_error<P: AsRef<Path>>(path: P, error: std::io::Error) -> Self {
         Self::File(path.as_ref().to_path_buf(), error)
     }
