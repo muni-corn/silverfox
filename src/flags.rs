@@ -1,8 +1,8 @@
-use crate::errors::{BasicError, MvelopesError};
+use crate::errors::{BasicError, SilverFoxError};
 use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
-use crate::ledger::{Ledger, Period};
+use crate::ledger::Ledger;
 
 pub struct CommandFlags {
     pub file_path: Option<PathBuf>,
@@ -13,7 +13,6 @@ pub struct CommandFlags {
     pub rules_file: Option<PathBuf>,
 
     pub other_accounts: bool,
-    pub period: Option<Period>,
     pub begin_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
 }
@@ -38,7 +37,6 @@ impl CommandFlags {
             csv_file: None,
             rules_file: None,
             other_accounts: false,
-            period: None,
             begin_date: None,
             end_date: None,
         };
@@ -65,7 +63,7 @@ impl CommandFlags {
                         }
                         _ => {
                             return Err(BasicError {
-                                message: format!("mvelopes doesn't recognize this flag: `{}`", arg),
+                                message: format!("silverfox doesn't recognize this flag: `{}`", arg),
                             })
                         }
                     }
@@ -73,19 +71,10 @@ impl CommandFlags {
             }
         }
 
-        if flags.file_path.is_none() {
-            // if flags.file_path is still empty after parsing flags, try to get it from the environment
-            // variable
-            match env::var("LEDGER_FILE") {
-                Ok(path) => flags.file_path = Some(PathBuf::from(path)),
-                _ => return Err(BasicError::new("mvelopes wasn't given a file path. you can specify one with the `-f` flag or by setting the $LEDGER_FILE environment variable"))
-            }
-        }
-
         Ok(flags)
     }
 
-    pub fn execute(&self) -> Result<(), MvelopesError> {
+    pub fn execute(&self) -> Result<(), SilverfoxError> {
         let mut ledger = Ledger::from_file(&self.file_path.as_ref().unwrap_or_else(|| unreachable!()))?;
 
         if !self.no_move {
@@ -103,15 +92,15 @@ impl CommandFlags {
                         return ledger.import_csv(&c, self.rules_file.as_ref())
                     },
                     None => {
-                        return Err(MvelopesError::from(BasicError {
+                        return Err(SilverfoxError::from(BasicError {
                             message: String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")
                         }))
                     },
                 }
             }
-            Subcommand::Register => ledger.display_register(self.period, self.begin_date, self.end_date),
-            _ => return Err(MvelopesError::from(BasicError {
-                message: format!("the `{}` subcommand is recognized by mvelopes, but not supported yet. sorry :(", self.subcommand)
+            // Subcommand::Register => ledger.display_register(self.period, self.begin_date, self.end_date),
+            _ => return Err(SilverfoxError::from(BasicError {
+                message: format!("the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(", self.subcommand)
             })),
         }
 
@@ -161,7 +150,7 @@ impl TryFrom<&str> for Subcommand {
                 'n' => Ok(Self::New),
                 _ =>
                     Err(BasicError {
-                        message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to mvelopes. did you misplace your subcommand?", s)
+                        message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
                     })
             }
         } else {
@@ -173,7 +162,7 @@ impl TryFrom<&str> for Subcommand {
 }
 
 fn display_help() {
-    println!("hello! i'm mvelopes!");
+    println!("hello! i'm silverfox!");
     println!("you can use one of the subcommands to get information about your journal:");
     println!("    (b)alance      display all accounts and their respective values");
     println!("    (e)nvelopes    view your envelopes and how much is saved up in each");
@@ -182,7 +171,7 @@ fn display_help() {
     println!("    (i)mport       parse entries from a csv file and add them to your journal");
     // println!();
     // println!("you can get more information about each subcommand with the --help flag, like so:");
-    // println!("    mvelopes b --help")
+    // println!("    silverfox b --help")
 }
 
 fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, BasicError> {
