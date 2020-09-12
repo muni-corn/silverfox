@@ -314,6 +314,15 @@ impl AmountPool {
         self.pool.len()
     }
 
+    /// Not to be confused with `is_zero`, `is_empty` returns true if and only if there are no
+    /// amounts contained within this pool.
+    ///
+    /// If there is one or more amounts with zero magnitude, this function returns false because
+    /// there are still amounts being tracked within this pool.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn new() -> Self {
         Default::default()
     }
@@ -330,10 +339,16 @@ impl AmountPool {
         self.pool.iter()
     }
 
+    /// Returns true if either (a) the pool is empty, or (b) all amounts in the pool have zero
+    /// magnitiude.
     pub fn is_zero(&self) -> bool {
-        for amt in self.pool {
-            if amt.mag > 0.0 {
-                return false;
+        if self.is_empty() {
+            return true
+        }
+
+        for amt in &self.pool {
+            if amt.mag != 0.0 {
+                return false
             }
         }
 
