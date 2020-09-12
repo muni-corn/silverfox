@@ -398,16 +398,16 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
         is_account_name_focused_fn: Box<dyn Fn(&str) -> bool>,
     ) -> Result<Option<EntryRegisterData>, ProcessingError> {
         let (positive_name, negative_name, amounts) = {
-            let positive_names = HashSet::new();
-            let negative_names = HashSet::new();
-            let focused_amount = AmountPool::new();
+            let mut positive_names = HashSet::new();
+            let mut negative_names = HashSet::new();
+            let mut focused_amount = AmountPool::new();
 
-            for p in self.postings {
+            for p in &self.postings {
                 let name = p.get_account();
                 let amount = if let Some(a) = p.get_amount() {
-                    a
+                    a.clone()
                 } else {
-                    &self.get_blank_amount()?.unwrap()
+                    self.get_blank_amount()?.unwrap()
                 };
 
                 if amount.mag > 0.0 {
@@ -429,20 +429,20 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 
             let positive_name = match positive_names.len() {
                 0 => "(none)".to_string(),
-                1 => *positive_names.iter().next().unwrap().to_owned(),
+                1 => positive_names.iter().next().unwrap().to_string(),
                 _ => "(multiple)".to_string(),
             };
 
             let negative_name = match negative_names.len() {
                 0 => "(none)".to_string(),
-                1 => *negative_names.iter().next().unwrap().to_owned(),
+                1 => negative_names.iter().next().unwrap().to_string(),
                 _ => "(multiple)".to_string(),
             };
 
             (positive_name, negative_name, focused_amount)
         };
 
-        let account_flow = (negative_name, positive_name);
+        let account_flow = (negative_name.clone(), positive_name.clone());
         let short_account_flow = (
             negative_name.split(':').last().unwrap().to_string(),
             positive_name.split(':').last().unwrap().to_string(),
@@ -466,6 +466,7 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
             description: self.description.clone(),
             payee: self
                 .payee
+                .as_ref()
                 .map(|p| format!("[{}]", p))
                 .unwrap_or_else(|| "".to_string()),
             account_flow,
