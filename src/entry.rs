@@ -392,9 +392,7 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 
     pub fn as_register_data(
         &self,
-        account_match: Option<String>,
         date_format: &str,
-        decimal_symbol: char,
         is_account_name_focused_fn: Box<dyn Fn(&str) -> bool>,
     ) -> Result<Option<EntryRegisterData>, ProcessingError> {
         let (positive_name, negative_name, amounts) = {
