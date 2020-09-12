@@ -75,28 +75,30 @@ impl Amount {
         !is_mag_char(c, decimal_symbol) && c != '.' && c != ','
     }
 
-    pub fn display(&self) -> String {
-        let mag_fmt: String = if self.mag < 0.0 {
-            format!("{}", (self.mag * 100_000_000.0).round() / 100_000_000.0)
-        } else {
-            format!(" {}", (self.mag * 100_000_000.0).round() / 100_000_000.0)
-        };
-
-        if let Some(s) = &self.symbol {
-            if s.len() <= 2 {
-                format!("{}{}", s, mag_fmt)
-            } else {
-                format!("{} {}", mag_fmt, s)
-            }
-        } else {
-            mag_fmt
-        }
+    fn rounded_mag(&self) -> f64 {
+        (self.mag * 100_000_000.0).round() / 100_000_000.0
     }
 }
 
 impl fmt::Display for Amount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.display())
+        let mag_fmt = if f.sign_plus() {
+            format!("{:+}", self.rounded_mag())
+        } else if self.mag < 0.0 {
+            format!("{}", self.rounded_mag())
+        } else {
+            format!(" {}", self.rounded_mag())
+        };
+
+        if let Some(sym) = &self.symbol {
+            if sym.len() <= 2 {
+                write!(f, "{}{}", sym, mag_fmt)
+            } else {
+                write!(f, "{} {}", mag_fmt, sym)
+            }
+        } else {
+            write!(f, "{}", mag_fmt)
+        }
     }
 }
 
@@ -308,7 +310,7 @@ impl IntoIterator for AmountPool {
 }
 
 impl AmountPool {
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.pool.len()
     }
 
@@ -353,12 +355,12 @@ impl From<Amount> for AmountPool {
 
 impl fmt::Display for AmountPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.size() {
+        match self.len() {
             0 => Ok(()),
-            1 => write!(f, "{}", self.pool[0].display()),
+            1 => write!(f, "{}", self.pool[0]),
             _ => {
                 for a in self.pool.iter() {
-                    write!(f, "\n\t{}", a.display())?;
+                    write!(f, "\n\t{}", a)?;
                 }
 
                 Ok(())
