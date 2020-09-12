@@ -104,7 +104,7 @@ impl Entry {
         date_format: &str,
         decimal_symbol: char,
         accounts: &HashSet<&String>,
-    ) -> Result<Self, SilverFoxError> {
+    ) -> Result<Self, SilverfoxError> {
         let trimmed_chunk = chunk.trim();
         if trimmed_chunk.is_empty() {
             return Err(ParseError {
@@ -120,7 +120,7 @@ impl Entry {
             Self::parse_header(l, date_format)?
         } else {
             let err = ParseError::default().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with silverfox's programming. please report it!");
-            return Err(SilverFoxError::from(err));
+            return Err(SilverfoxError::from(err));
         };
 
         // parse postings

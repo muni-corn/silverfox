@@ -1,4 +1,4 @@
-use crate::errors::{BasicError, SilverFoxError};
+use crate::errors::{BasicError, SilverfoxError};
 use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
@@ -154,7 +154,7 @@ impl TryFrom<&str> for Subcommand {
                     })
             }
         } else {
-            Err(errors::BasicError {
+            Err(BasicError {
                 message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
             })
         }
