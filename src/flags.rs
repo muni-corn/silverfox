@@ -75,7 +75,17 @@ impl CommandFlags {
     }
 
     pub fn execute(&self) -> Result<(), SilverfoxError> {
-        let mut ledger = Ledger::from_file(&self.file_path.as_ref().unwrap_or_else(|| unreachable!()))?;
+        let file_path = if let Some(f) = flags.file_path {
+            f
+        } else if let Some(e) = get_file_from_env() {
+            e
+        } else {
+            return Err(SilverfoxError::Basic(BasicError::new("silverfox wasn't given a file to work with. there are a couple of ways you can do this:
+    - use the `-f` flag from the command line (example: `silverfox -f ./path/to/file.sfox`)
+    - set the environment variable $SILVERFOX_FILE or $LEDGER_FILE to a path to a file")))
+        };
+
+        let mut ledger = Ledger::from_file(file_path)?;
 
         if !self.no_move {
             if let Err(e) = ledger.fill_envelopes() {
@@ -182,3 +192,14 @@ fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, Basic
         }),
     }
 }
+
+fn get_file_from_env() -> Option<PathBuf> {
+    if let Ok(v) = env::var("SILVERFOX_FILE") {
+        Some(PathBuf::from(v))
+    } else if let Ok(v) = env::var("LEDGER_FILE") {
+        Some(PathBuf::from(v))
+    } else {
+        None
+    }
+}
+
