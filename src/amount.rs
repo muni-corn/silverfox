@@ -299,6 +299,20 @@ impl SubAssign<&Amount> for AmountPool {
     }
 }
 
+impl AddAssign<&AmountPool> for AmountPool {
+    fn add_assign(&mut self, other: &AmountPool) {
+        for amount in other.iter() {
+            *self += amount;
+        }
+    }
+}
+
+impl AddAssign<AmountPool> for AmountPool {
+    fn add_assign(&mut self, other: AmountPool) {
+        *self += &other
+    }
+}
+
 impl IntoIterator for AmountPool {
     type Item = Amount;
 
