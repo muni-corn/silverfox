@@ -1,8 +1,8 @@
 use crate::errors::{BasicError, SilverfoxError};
+use crate::ledger::Ledger;
 use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
-use crate::ledger::Ledger;
 
 pub struct CommandFlags {
     pub file_path: Option<PathBuf>,
@@ -41,7 +41,6 @@ impl CommandFlags {
             end_date: None,
         };
 
-
         while let Some(arg) = args.next() {
             // match boolean flags first
             match arg.as_str() {
@@ -63,7 +62,10 @@ impl CommandFlags {
                         }
                         _ => {
                             return Err(BasicError {
-                                message: format!("silverfox doesn't recognize this flag: `{}`", arg),
+                                message: format!(
+                                    "silverfox doesn't recognize this flag: `{}`",
+                                    arg
+                                ),
                             })
                         }
                     }
@@ -75,7 +77,25 @@ impl CommandFlags {
     }
 
     pub fn execute(&self) -> Result<(), SilverfoxError> {
-        let mut ledger = Ledger::from_file(&self.file_path.as_ref().unwrap_or_else(|| unreachable!()))?;
+        // use self.file_path if it exists, or else $SILVERFOX_FILE, or else $LEDGER_FILE. if none
+        // of those exist, then we're screwed
+        let file_path = self.file_path.clone().unwrap_or_else(|| {
+            std::env::var("SILVERFOX_FILE").map_or_else(
+                |_| {
+                    std::env::var("LEDGER_FILE").map_or_else(
+                        |_| {
+                            eprintln!("(no file specified)");
+                            display_help();
+                            std::process::exit(1)
+                        },
+                        PathBuf::from,
+                    )
+                }, 
+                PathBuf::from,
+            )
+        });
+
+        let mut ledger = Ledger::from_file(&file_path)?;
 
         if !self.no_move {
             if let Err(e) = ledger.fill_envelopes() {
