@@ -1,8 +1,8 @@
 use crate::errors::{BasicError, SilverfoxError};
+use crate::ledger::Ledger;
 use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
-use crate::ledger::Ledger;
 
 pub struct CommandFlags {
     pub file_path: Option<PathBuf>,
@@ -41,7 +41,6 @@ impl CommandFlags {
             end_date: None,
         };
 
-
         while let Some(arg) = args.next() {
             // match boolean flags first
             match arg.as_str() {
@@ -63,7 +62,10 @@ impl CommandFlags {
                         }
                         _ => {
                             return Err(BasicError {
-                                message: format!("silverfox doesn't recognize this flag: `{}`", arg),
+                                message: format!(
+                                    "silverfox doesn't recognize this flag: `{}`",
+                                    arg
+                                ),
                             })
                         }
                     }
@@ -75,8 +77,8 @@ impl CommandFlags {
     }
 
     pub fn execute(&self) -> Result<(), SilverfoxError> {
-        let file_path = if let Some(f) = flags.file_path {
-            f
+        let file_path = if let Some(f) = &self.file_path {
+            f.to_owned()
         } else if let Some(e) = get_file_from_env() {
             e
         } else {
@@ -85,7 +87,7 @@ impl CommandFlags {
     - set the environment variable $SILVERFOX_FILE or $LEDGER_FILE to a path to a file")))
         };
 
-        let mut ledger = Ledger::from_file(file_path)?;
+        let mut ledger = Ledger::from_file(&file_path)?;
 
         if !self.no_move {
             if let Err(e) = ledger.fill_envelopes() {
