@@ -393,8 +393,17 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
     pub fn as_register_data(
         &self,
         date_format: &str,
-        is_account_name_focused_fn: Box<dyn Fn(&str) -> bool>,
+        account_match: &Option<String>,
     ) -> Result<Option<EntryRegisterData>, ProcessingError> {
+        // XXX: This closure is a duplicate of the one in
+        // `ledger::display_register()`
+        let is_account_name_focused = |account_name: &str| match account_match {
+            Some(match_str) => account_name.contains(match_str),
+            // TODO: an issue ticket is open to further solidify whether or not an account is an
+            // "asset", so this will be changed soon (it's kinda dumb right now)
+            None => account_name.starts_with("asset"), 
+        };
+
         let (positive_name, negative_name, amounts) = {
             let mut positive_names = HashSet::new();
             let mut negative_names = HashSet::new();
@@ -414,7 +423,7 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
                     negative_names.insert(name);
                 }
 
-                if is_account_name_focused_fn(name) {
+                if is_account_name_focused(name) {
                     focused_amount += amount;
                 }
             }
@@ -446,9 +455,9 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
             positive_name.split(':').last().unwrap().to_string(),
         );
         let single_account_display = {
-            if !is_account_name_focused_fn(&positive_name) {
+            if !is_account_name_focused(&positive_name) {
                 positive_name.split(':').last().unwrap()
-            } else if !is_account_name_focused_fn(&negative_name) {
+            } else if !is_account_name_focused(&negative_name) {
                 negative_name.split(':').last().unwrap()
             } else {
                 // both positive and negative accounts are focused, so this is
