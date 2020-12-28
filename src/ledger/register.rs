@@ -172,11 +172,12 @@ fn print_lines(maximums: &MaximumLens, register_data: &[EntryRegisterData], cons
                 to_acct_len = maximums.long_to_account,
             );
 
+            // TODO: Have Amount::display handle formatting arguments
             print!("{}", prelude);
             println!(
                 "{:>amount_len$}  {:>running_total_len$}",
-                first_amount,
-                running_total.only(&first_amount.symbol),
+                format!("{}", first_amount),
+                format!("{}", running_total.only(&first_amount.symbol)),
                 amount_len = maximums.amount,
                 running_total_len = maximums.running_total,
             );
@@ -186,8 +187,8 @@ fn print_lines(maximums: &MaximumLens, register_data: &[EntryRegisterData], cons
                 println!(
                     "{}{:>amount_len$}  {:>running_total_len$}",
                     prelude_space,
-                    amount,
-                    running_total.only(&amount.symbol),
+                    format!("{}", amount),
+                    format!("{}", running_total.only(&amount.symbol)),
                     amount_len = maximums.amount,
                     running_total_len = maximums.running_total,
                 );
