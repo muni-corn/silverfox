@@ -9,12 +9,6 @@ pub mod ledger;
 pub mod posting;
 pub mod utils;
 
-use std::env;
-use std::path::PathBuf;
-use errors::{SilverfoxError, BasicError};
-use flags::{CommandFlags, Subcommand};
-use ledger::Ledger;
-
 fn main() {
     match flags::CommandFlags::parse_from_env() {
         Ok(f) => if let Err(e) = f.execute() {

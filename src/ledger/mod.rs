@@ -344,7 +344,7 @@ impl Ledger {
         end_date: Option<NaiveDate>,
         account_match: Option<String>,
     ) {
-        Register::display(begin_date, end_date, account_match);
+        Register::display(&self.entries, &self.date_format, begin_date, end_date, account_match);
     }
 }
 

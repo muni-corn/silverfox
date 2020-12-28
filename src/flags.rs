@@ -98,6 +98,7 @@ impl CommandFlags {
         match self.subcommand {
             Subcommand::Balance => ledger.display_flat_balance()?,
             Subcommand::Envelopes => ledger.display_envelopes(),
+            Subcommand::Register => ledger.display_register(self.begin_date, self.end_date, None),
             Subcommand::Import => {
                 match &self.csv_file {
                     Some(c) => {
