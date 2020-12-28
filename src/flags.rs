@@ -77,23 +77,15 @@ impl CommandFlags {
     }
 
     pub fn execute(&self) -> Result<(), SilverfoxError> {
-        // use self.file_path if it exists, or else $SILVERFOX_FILE, or else $LEDGER_FILE. if none
-        // of those exist, then we're screwed
-        let file_path = self.file_path.clone().unwrap_or_else(|| {
-            std::env::var("SILVERFOX_FILE").map_or_else(
-                |_| {
-                    std::env::var("LEDGER_FILE").map_or_else(
-                        |_| {
-                            eprintln!("(no file specified)");
-                            display_help();
-                            std::process::exit(1)
-                        },
-                        PathBuf::from,
-                    )
-                }, 
-                PathBuf::from,
-            )
-        });
+        let file_path = if let Some(f) = &self.file_path {
+            f.to_owned()
+        } else if let Some(e) = get_file_from_env() {
+            e
+        } else {
+            return Err(SilverfoxError::Basic(BasicError::new("silverfox wasn't given a file to work with. there are a couple of ways you can do this:
+    - use the `-f` flag from the command line (example: `silverfox -f ./path/to/file.sfox`)
+    - set the environment variable $SILVERFOX_FILE or $LEDGER_FILE to a path to a file")))
+        };
 
         let mut ledger = Ledger::from_file(&file_path)?;
 
@@ -106,6 +98,7 @@ impl CommandFlags {
         match self.subcommand {
             Subcommand::Balance => ledger.display_flat_balance()?,
             Subcommand::Envelopes => ledger.display_envelopes(),
+            Subcommand::Register => ledger.display_register(self.begin_date, self.end_date, None),
             Subcommand::Import => {
                 match &self.csv_file {
                     Some(c) => {
@@ -202,3 +195,14 @@ fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, Basic
         }),
     }
 }
+
+fn get_file_from_env() -> Option<PathBuf> {
+    if let Ok(v) = env::var("SILVERFOX_FILE") {
+        Some(PathBuf::from(v))
+    } else if let Ok(v) = env::var("LEDGER_FILE") {
+        Some(PathBuf::from(v))
+    } else {
+        None
+    }
+}
+

@@ -2,14 +2,19 @@ use crate::account::Account;
 use crate::amount::{Amount, AmountPool};
 use crate::entry::Entry;
 use crate::errors::*;
-use crate::utils;
-use crate::posting::Posting;
 use crate::importer::CsvImporter;
+use crate::posting::Posting;
+use crate::utils;
+use chrono::{Local, NaiveDate};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::fs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+
+mod register;
+use register::Register;
 
 pub struct Ledger {
     file_path: PathBuf,
@@ -21,8 +26,8 @@ pub struct Ledger {
 }
 
 impl Ledger {
-    /// Returns a blank ledger, with default values for `date_format` and `decimal_symbol`
-    fn blank() -> Self {
+    /// Returns a blank ledger, with default values for `date_format` and `decimal_symbol`.
+    fn new() -> Self {
         Ledger {
             file_path: PathBuf::new(),
             date_format: String::from("%Y/%m/%d"),
@@ -33,9 +38,9 @@ impl Ledger {
         }
     }
 
-    /// Returns a ledger parsed from a file at the `file_path`
+    /// Returns a ledger parsed from a file at the `file_path`.
     pub fn from_file(file_path: &Path) -> Result<Self, SilverfoxError> {
-        let mut ledger = Self::blank();
+        let mut ledger = Self::new();
         ledger.file_path = PathBuf::from(file_path);
 
         if let Err(e) = ledger.add_from_file(file_path) {
@@ -45,9 +50,10 @@ impl Ledger {
         }
     }
 
-    /// Adds to the ledger from the contents parsed from the file at the `file_path`
+    /// Adds to the ledger from the contents parsed from the file at the `file_path`.
     fn add_from_file(&mut self, file_path: &Path) -> Result<(), SilverfoxError> {
-        let s = fs::read_to_string(file_path).map_err(|e| SilverfoxError::file_error(&PathBuf::from(file_path), e))?;
+        let s = fs::read_to_string(file_path)
+            .map_err(|e| SilverfoxError::file_error(&PathBuf::from(file_path), e))?;
 
         // change directory to parent after reading to string, and before parsing
         let parent_dir = file_path.parent().unwrap();
@@ -163,6 +169,9 @@ impl Ledger {
         }
     }
 
+    /// Adds an entry to the ledger. Note that this does NOT affect the actual saved file.
+    ///
+    /// This function shall ensure that the ledger's entries are sorted by date after each insertion.
     fn add_entry(&mut self, entry: Entry) -> Result<(), SilverfoxError> {
         for (_, account) in self.accounts.iter_mut() {
             if let Err(e) = account.process_entry(&entry) {
@@ -170,6 +179,7 @@ impl Ledger {
             }
         }
         self.entries.push(entry);
+        self.entries.sort_by(|a, b| a.get_date().cmp(&b.get_date()));
         Ok(())
     }
 
@@ -177,31 +187,24 @@ impl Ledger {
     /// Ledger.
     fn append_entry(&mut self, entry: Entry) -> Result<(), SilverfoxError> {
         let mut file = match fs::OpenOptions::new().append(true).open(&self.file_path) {
-            Ok(f) => {
-                f
-            },
-            Err(e) => {
-                return Err(SilverfoxError::file_error(&self.file_path, e))
-            }
+            Ok(f) => f,
+            Err(e) => return Err(SilverfoxError::file_error(&self.file_path, e)),
         };
 
         if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
             return Err(SilverfoxError::from(BasicError {
-                message: format!("{}", e)
-            }))
+                message: format!("{}", e),
+            }));
         }
 
         self.add_entry(entry)
     }
 
     fn parse_account(&mut self, chunk: &str) -> Result<(), SilverfoxError> {
-        match Account::parse(chunk, self.decimal_symbol, &self.date_format) {
-            Ok(a) => {
-                self.accounts.insert(a.get_name().to_string(), a);
-                Ok(())
-            },
-            Err(e) => Err(e),
-        }
+        let a = Account::parse(chunk, self.decimal_symbol, &self.date_format)?;
+        self.accounts.insert(a.get_name().to_string(), a);
+
+        Ok(())
     }
 
     pub fn display_flat_balance(&self) -> Result<(), SilverfoxError> {
@@ -283,30 +286,36 @@ impl Ledger {
         }
 
         // remove zero-magnitude postings, they're useless
-        postings.retain(|p| if let Some(a) = p.get_amount() {
-            a.mag != 0.0
-        } else {
-            false
+        postings.retain(|p| {
+            if let Some(a) = p.get_amount() {
+                a.mag != 0.0
+            } else {
+                false
+            }
         });
 
         // if no postings exist, forget adding an entry
         if postings.is_empty() {
-            return Ok(())
+            return Ok(());
         }
 
         let entry = Entry::new(
-            chrono::Local::today().naive_utc(),
+            Local::today().naive_utc(),
             crate::entry::EntryStatus::Cleared,
             String::from("move to envelopes"),
             None,
             postings,
-            Some(String::from("automatically generated by silverfox"))
+            Some(String::from("automatically generated by silverfox")),
         );
 
         self.append_entry(entry)
     }
 
-    pub fn import_csv(&mut self, csv_file: &Path, rules_file: Option<&PathBuf>) -> Result<(), SilverfoxError> {
+    pub fn import_csv(
+        &mut self,
+        csv_file: &Path,
+        rules_file: Option<&PathBuf>,
+    ) -> Result<(), SilverfoxError> {
         let account_set = self.accounts.keys().cloned().collect();
 
         let imp = match rules_file {
@@ -318,24 +327,42 @@ impl Ledger {
             match result {
                 Ok(e) => {
                     self.append_entry(e)?;
-                },
-                Err(e) => {
-                    return Err(e)
                 }
+                Err(e) => return Err(e),
             }
+        }
+
+        Ok(())
+    }
+
+    /// Display a register of all transactions from `begin_date` (inclusive) to `end_date` (also
+    /// inclusive). Also filter out any entries that don't have an account matching
+    /// `account_match`, i.e. `account_match` doesn't appear in any of the postings of an entry.
+    pub fn display_register(
+        &self,
+        begin_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+        account_match: Option<String>,
+    ) {
+        Register::display(&self.entries, &self.date_format, begin_date, end_date, account_match);
+    }
+}
+
+impl Debug for Ledger {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for ent in &self.entries {
+            Debug::fmt(&ent, f)?;
+            writeln!(f)?;
         }
 
         Ok(())
     }
 }
 
-impl Debug for Ledger {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for ent in &self.entries {
-            std::fmt::Debug::fmt(&ent, f)?;
-            writeln!(f)?;
-        }
-
-        Ok(())
-    }
+#[derive(Clone, Copy, Debug)]
+pub enum Period {
+    Yearly,
+    Monthly,
+    Weekly,
+    Daily, // ???
 }
