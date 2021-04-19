@@ -176,17 +176,11 @@ impl Posting {
     }
 
     pub fn is_envelope(&self) -> bool {
-        match self {
-            Self::Envelope(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Envelope(_))
     }
 
     pub fn is_classic(&self) -> bool {
-        match self {
-            Self::Classic(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Classic(_))
     }
 }
 

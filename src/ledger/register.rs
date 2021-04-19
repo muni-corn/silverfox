@@ -147,7 +147,7 @@ fn get_maximum_lengths(
     Ok(m)
 }
 
-fn print_lines(maximums: &MaximumLens, register_data: &[EntryRegisterData], console_width: usize) {
+fn print_lines(maximums: &MaximumLens, register_data: &[EntryRegisterData], _console_width: usize) {
     let mut running_total = AmountPool::new();
 
     for rd in register_data {

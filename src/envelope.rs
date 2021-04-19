@@ -131,7 +131,7 @@ impl Frequency {
         date_format: &str,
         starting_date: Option<NaiveDate>,
     ) -> Result<Self, ParseError> {
-        if s.starts_with("every other ") {
+        if let Some(what) = s.strip_prefix("every other ") {
             // stop if "starting" isn't given, since it's required here
             if starting_date.is_none() {
                 return Err(ParseError {
@@ -142,8 +142,6 @@ impl Frequency {
 
             // parse "every others"
             // remember: the `starting` clause is already trimmed
-            let what = &s["every other ".len()..];
-
             if Self::parse_weekday(what).is_some() {
                 Ok(Self::Biweekly(starting_date.unwrap()))
             } else if Self::parse_day_of_month(what).is_some() {
@@ -154,11 +152,9 @@ impl Frequency {
                     message: Some("invalid frequency".to_string()),
                 })
             }
-        } else if s.starts_with("every ") {
+        } else if let Some(what) = s.strip_prefix("every ") {
             // parse "everys"
             // remember: the `starting` clause is already trimmed
-            let what = &s["every ".len()..];
-
             if let Some(w) = Self::parse_weekday(what) {
                 Ok(Self::Weekly(w))
             } else if let Some(d) = Self::parse_day_of_month(what) {
@@ -611,13 +607,14 @@ impl Envelope {
     /// and amounts), as well as the envelope's last_entry_date
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
         if entry.has_envelope_posting() {
-            self.process_manual_postings(entry)
+            self.process_manual_postings(entry);
+            Ok(())
         } else {
             self.infer(entry)
         }
     }
 
-    fn process_manual_postings(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
+    fn process_manual_postings(&mut self, entry: &Entry) {
         // manual envelopes
         for posting in entry.get_envelope_postings() {
             // process each envelope posting in the entry
@@ -635,8 +632,6 @@ impl Envelope {
                 }
             }
         }
-
-        Ok(())
     }
 
     fn infer(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
