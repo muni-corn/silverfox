@@ -1,8 +1,4 @@
-use crate::amount::AmountPool;
-use crate::entry::Entry;
-use crate::entry::EntryRegisterData;
-use crate::errors::BasicError;
-use crate::errors::SilverfoxError;
+use crate::{amount::AmountPool, entry::Entry, entry::EntryRegisterData, errors::SilverfoxError};
 use chrono::NaiveDate;
 
 pub struct Register;
@@ -18,7 +14,7 @@ impl Register {
         let console_width = if let Some(s) = terminal_size::terminal_size() {
             (s.0).0 as usize
         } else {
-            return Err(SilverfoxError::Basic(BasicError::new(
+            return Err(SilverfoxError::Basic(String::from(
                 "couldn't figure out the width of your terminal. are you in a terminal?",
             )));
         };
@@ -111,9 +107,10 @@ fn get_maximum_lengths(
                 }
             }
             Err(e) => {
-                return Err(SilverfoxError::Basic(BasicError {
-                    message: format!("couldn't display a register:\n\n{}", e),
-                }))
+                return Err(SilverfoxError::Basic(format!(
+                    "couldn't display a register:\n\n{}",
+                    e
+                )))
             }
         };
 

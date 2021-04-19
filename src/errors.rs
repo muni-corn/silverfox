@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -5,8 +6,9 @@ use std::path::{Path, PathBuf};
 
 /// SilverfoxError is an enum for all possible custom errors that silverfox can throw. It is a
 /// wrapper of sorts.
+#[derive(Debug)]
 pub enum SilverfoxError {
-    Basic(BasicError),
+    Basic(String),
     Parse(ParseError),
     Validation(ValidationError),
     Processing(ProcessingError),
@@ -14,11 +16,7 @@ pub enum SilverfoxError {
     Csv(csv::Error),
 }
 
-impl From<BasicError> for SilverfoxError {
-    fn from(err: BasicError) -> Self {
-        Self::Basic(err)
-    }
-}
+impl Error for SilverfoxError {}
 
 impl From<ParseError> for SilverfoxError {
     fn from(err: ParseError) -> Self {
@@ -47,7 +45,7 @@ impl From<csv::Error> for SilverfoxError {
 impl fmt::Display for SilverfoxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SilverfoxError::Basic(b) => b.fmt(f),
+            SilverfoxError::Basic(s) => s.fmt(f),
             SilverfoxError::Validation(v) => v.fmt(f),
             SilverfoxError::Parse(p) => p.fmt(f),
             SilverfoxError::Processing(p) => p.fmt(f),
@@ -63,26 +61,6 @@ impl SilverfoxError {
     }
 }
 
-/// BasicError is a simple error with only a message that can be thrown at any time.
-#[derive(Debug)]
-pub struct BasicError {
-    pub message: String
-}
-
-impl BasicError {
-    pub fn new(message: &str) -> Self {
-        Self {
-            message: message.to_string()
-        }
-    }
-}
-
-impl fmt::Display for BasicError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
 /// ParseError is thrown during the parsing phase of ledger construction. If silverfox can't parse
 /// something, this error type will be thrown.
 #[derive(Debug)]
@@ -90,6 +68,8 @@ pub struct ParseError {
     pub context: Option<String>,
     pub message: Option<String>,
 }
+
+impl Error for ParseError {}
 
 impl ParseError {
     /// Sets the message of the error, returning itself for the convenience of chaining.
@@ -142,6 +122,8 @@ pub struct ValidationError {
     pub message: Option<String>,
 }
 
+impl Error for ValidationError {}
+
 impl ValidationError {
     /// Sets the message of the error, returning itself for the convenience of chaining.
     pub fn set_message(mut self, message: &str) -> Self {
@@ -184,10 +166,13 @@ impl fmt::Display for ValidationError {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcessingError {
     pub context: Option<String>,
     pub message: Option<String>,
 }
+
+impl Error for ProcessingError {}
 
 impl ProcessingError {
     /// Sets the message of the error, returning itself for the convenience of chaining.
@@ -226,7 +211,7 @@ impl fmt::Display for ProcessingError {
         } else if let Some(b) = &self.context {
             write!(f, "your journal is valid, but silverfox couldn't process this:\n\n{}\n\nno further information was provided", b)
         } else {
-            write!(f, "your journal is valid, but silverfox couldn't process something. no information was provided")
+            write!(f, "your journal is valid, but silverfox couldn't process something. no information was provided. file an issue?")
         }
     }
 }

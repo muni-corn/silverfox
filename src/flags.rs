@@ -1,4 +1,4 @@
-use crate::errors::{BasicError, SilverfoxError};
+use crate::errors::SilverfoxError;
 use crate::ledger::Ledger;
 use std::convert::TryFrom;
 use std::env;
@@ -18,7 +18,7 @@ pub struct CommandFlags {
 }
 
 impl CommandFlags {
-    pub fn parse_from_env() -> Result<Self, BasicError> {
+    pub fn parse_from_env() -> Result<Self, SilverfoxError> {
         let mut args = env::args();
 
         // parse subcommand
@@ -61,12 +61,12 @@ impl CommandFlags {
                             flags.rules_file = Some(PathBuf::from(arg_value));
                         }
                         _ => {
-                            return Err(BasicError {
-                                message: format!(
+                            return Err(SilverfoxError::Basic(
+                                format!(
                                     "silverfox doesn't recognize this flag: `{}`",
                                     arg
                                 ),
-                            })
+                            ))
                         }
                     }
                 }
@@ -82,9 +82,9 @@ impl CommandFlags {
         } else if let Some(e) = get_file_from_env() {
             e
         } else {
-            return Err(SilverfoxError::Basic(BasicError::new("silverfox wasn't given a file to work with. there are a couple of ways you can do this:
+            return Err(SilverfoxError::Basic(String::from("silverfox wasn't given a file to work with. there are a couple of ways you can do this:
     - use the `-f` flag from the command line (example: `silverfox -f ./path/to/file.sfox`)
-    - set the environment variable $SILVERFOX_FILE or $LEDGER_FILE to a path to a file")))
+    - set the environment variable $SILVERFOX_FILE or $LEDGER_FILE to a path to a file")));
         };
 
         let mut ledger = Ledger::from_file(&file_path)?;
@@ -105,16 +105,12 @@ impl CommandFlags {
                         return ledger.import_csv(&c, self.rules_file.as_ref())
                     },
                     None => {
-                        return Err(SilverfoxError::from(BasicError {
-                            message: String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")
-                        }))
+                        return Err(SilverfoxError::Basic(String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")))
                     },
                 }
             }
             // Subcommand::Register => ledger.display_register(self.period, self.begin_date, self.end_date),
-            _ => return Err(SilverfoxError::from(BasicError {
-                message: format!("the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(", self.subcommand)
-            })),
+            _ => return Err(SilverfoxError::Basic(format!("the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(", self.subcommand))),
         }
 
         Ok(())
@@ -150,9 +146,9 @@ impl std::fmt::Display for Subcommand {
 }
 
 impl TryFrom<&str> for Subcommand {
-    type Error = BasicError;
+    type Error = SilverfoxError;
 
-    fn try_from(s: &str) -> Result<Self, BasicError> {
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         if let Some(c) = s.chars().next() {
             match c {
                 's' => Ok(Self::Summary),
@@ -162,14 +158,10 @@ impl TryFrom<&str> for Subcommand {
                 'i' => Ok(Self::Import),
                 'n' => Ok(Self::New),
                 _ =>
-                    Err(BasicError {
-                        message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
-                    })
+                    Err(SilverfoxError::Basic(format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)))
             }
         } else {
-            Err(BasicError {
-                message: format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)
-            })
+            Err(SilverfoxError::Basic(format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)))
         }
     }
 }
@@ -187,12 +179,10 @@ fn display_help() {
     // println!("    silverfox b --help")
 }
 
-fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, BasicError> {
+fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, SilverfoxError> {
     match arg {
         Some(a) => Ok(a),
-        None => Err(BasicError {
-            message: format!("no value was supplied for the argument `{}`", name),
-        }),
+        None => Err(SilverfoxError::Basic(format!("no value was supplied for the argument `{}`", name))),
     }
 }
 
@@ -205,4 +195,3 @@ fn get_file_from_env() -> Option<PathBuf> {
         None
     }
 }
-

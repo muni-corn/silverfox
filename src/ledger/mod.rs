@@ -192,9 +192,7 @@ impl Ledger {
         };
 
         if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
-            return Err(SilverfoxError::from(BasicError {
-                message: format!("{}", e),
-            }));
+            return Err(SilverfoxError::Basic(format!("{}", e)))
         }
 
         self.add_entry(entry)
@@ -344,7 +342,7 @@ impl Ledger {
         end_date: Option<NaiveDate>,
         account_match: Option<String>,
     ) {
-        Register::display(&self.entries, &self.date_format, begin_date, end_date, account_match);
+        Register::display(&self.entries, &self.date_format, begin_date, end_date, account_match).unwrap();
     }
 }
 
