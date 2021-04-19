@@ -266,12 +266,10 @@ impl Rules {
                 "status" => self.status = String::from("~"),
                 _ => {
                     // attempt parsing an amount index or an account index
-                    if rule_name.starts_with("amount") {
-                        let index_str = &rule_name["amount".len()..];
-                        self.amount_strs.remove(&String::from(index_str));
-                    } else if rule_name.starts_with("account") {
-                        let index_str = &rule_name["account".len()..];
-                        self.accounts.remove(&String::from(index_str));
+                    if let Some(stripped) = rule_name.strip_prefix("amount") {
+                        self.amount_strs.remove(&String::from(stripped));
+                    } else if let Some(stripped) = rule_name.strip_prefix("account") {
+                        self.accounts.remove(&String::from(stripped));
                     } else {
                         return Err(SilverfoxError::from(ParseError {
                             message: Some(format!(
@@ -334,12 +332,10 @@ impl Rules {
                 }
                 _ => {
                     // attempt parsing an amount index or an account index
-                    if rule_name.starts_with("amount") {
-                        let index_str = &rule_name["amount".len()..];
-                        self.amount_strs.insert(String::from(index_str), rule_value);
-                    } else if rule_name.starts_with("account") {
-                        let index_str = &rule_name["account".len()..];
-                        self.accounts.insert(String::from(index_str), rule_value);
+                    if let Some(stripped) = rule_name.strip_prefix("amount") {
+                        self.amount_strs.insert(String::from(stripped), rule_value);
+                    } else if let Some(stripped) = rule_name.strip_prefix("account") {
+                        self.accounts.insert(String::from(stripped), rule_value);
                     } else {
                         return Err(SilverfoxError::from(ParseError {
                             message: Some(format!(
