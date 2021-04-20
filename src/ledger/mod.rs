@@ -150,9 +150,10 @@ impl Ledger {
 
     fn include(&mut self, file: Option<&str>) -> Result<(), SilverfoxError> {
         match file {
-            None => Err(SilverfoxError::from(
-                ParseError::default().set_message("no file provided to an `include` clause"),
-            )),
+            None => Err(SilverfoxError::from(ParseError {
+                message: Some("no file provided to an `include` clause".to_string()),
+                context: None,
+            })),
             Some(f) => self.add_from_file(&PathBuf::from(f)),
         }
     }
@@ -192,7 +193,7 @@ impl Ledger {
         };
 
         if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
-            return Err(SilverfoxError::Basic(format!("{}", e)))
+            return Err(SilverfoxError::Basic(format!("{}", e)));
         }
 
         self.add_entry(entry)
@@ -342,7 +343,14 @@ impl Ledger {
         end_date: Option<NaiveDate>,
         account_match: Option<String>,
     ) {
-        Register::display(&self.entries, &self.date_format, begin_date, end_date, account_match).unwrap();
+        Register::display(
+            &self.entries,
+            &self.date_format,
+            begin_date,
+            end_date,
+            account_match,
+        )
+        .unwrap();
     }
 }
 

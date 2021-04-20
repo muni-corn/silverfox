@@ -26,11 +26,12 @@ impl Account {
         let header = match lines.next() {
             Some(l) => l,
             None => {
-                return Err(SilverfoxError::from(
-                    ParseError::default()
-                        .set_context(chunk)
-                        .set_message("account header can't be parsed because it doesn't exist"),
-                ))
+                return Err(SilverfoxError::from(ParseError {
+                    context: Some(chunk.to_string()),
+                    message: Some(
+                        "account header can't be parsed because it doesn't exist".to_string(),
+                    ),
+                }))
             }
         };
 
@@ -72,12 +73,8 @@ impl Account {
 
         // parse the remainder
         if !envelope_chunk.trim().is_empty() {
-            let new_envelope = Envelope::parse(
-                &envelope_chunk,
-                &account.name,
-                decimal_symbol,
-                &date_format,
-            )?;
+            let new_envelope =
+                Envelope::parse(&envelope_chunk, &account.name, decimal_symbol, &date_format)?;
 
             if let Err(e) = account.add_envelope(new_envelope) {
                 return Err(SilverfoxError::from(e));
@@ -120,15 +117,17 @@ impl Account {
             EnvelopeType::Goal => &mut self.goal_envelopes,
         };
 
-        let envelope_exists = envelope_collection.iter().any(|e| e.get_name() == envelope.get_name());
+        let envelope_exists = envelope_collection
+            .iter()
+            .any(|e| e.get_name() == envelope.get_name());
         if envelope_exists {
             Err(ValidationError {
                 message: Some(format!(
-                                 "there's a duplicate envelope definition for `{}` in the account `{}`",
-                                 envelope.get_name(),
-                                 self.name
-                         )),
-                         context: None,
+                    "there's a duplicate envelope definition for `{}` in the account `{}`",
+                    envelope.get_name(),
+                    self.name
+                )),
+                context: None,
             })
         } else {
             (*envelope_collection).push(envelope);
@@ -139,7 +138,11 @@ impl Account {
     /// Processes the Entry by looking for any changes to envelope amounts and applying them. Also
     /// adds to the real_value of the Account.
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
-        for envelope in self.expense_envelopes.iter_mut().chain(self.goal_envelopes.iter_mut()) {
+        for envelope in self
+            .expense_envelopes
+            .iter_mut()
+            .chain(self.goal_envelopes.iter_mut())
+        {
             envelope.process_entry(entry)?;
         }
 
@@ -149,10 +152,12 @@ impl Account {
                     self.real_value += a;
                 } else {
                     match entry.get_blank_amount() {
-                        Ok(o) => if let Some(a) = o {
-                            self.real_value += a;
-                        },
-                        Err(e) => return Err(e)
+                        Ok(o) => {
+                            if let Some(a) = o {
+                                self.real_value += a;
+                            }
+                        }
+                        Err(e) => return Err(e),
                     }
                 }
             }
@@ -175,7 +180,7 @@ impl Account {
         let available_value = self.get_available_value();
         for amount in available_value.iter() {
             if amount.mag == 0.0 {
-                continue
+                continue;
             }
             println!("    {}", amount)
         }
@@ -206,7 +211,10 @@ impl Account {
         // create an iterator, then reverse it so that envelopes are drained more safely in case
         // the account's available value is negative. goals will be drained first, starting at the
         // envelope with the farthest due date
-        let iter = self.expense_envelopes.iter().chain(self.goal_envelopes.iter());
+        let iter = self
+            .expense_envelopes
+            .iter()
+            .chain(self.goal_envelopes.iter());
         for envelope in iter.rev() {
             let new_posting = Posting::from(envelope.get_filling_posting(&available_value));
             if let Some(new_amount) = new_posting.get_amount() {
@@ -220,7 +228,11 @@ impl Account {
 
     pub fn get_available_value(&self) -> AmountPool {
         let mut amount_pool = self.real_value.clone();
-        for envelope in self.expense_envelopes.iter().chain(self.goal_envelopes.iter()) {
+        for envelope in self
+            .expense_envelopes
+            .iter()
+            .chain(self.goal_envelopes.iter())
+        {
             amount_pool = amount_pool - envelope.get_next_amount() - envelope.get_now_amount();
         }
 
@@ -233,8 +245,7 @@ mod tests {
     use super::*;
     use crate::envelope::Frequency;
 
-    const ACCOUNT_STR: &str =
-        "account assets:checking
+    const ACCOUNT_STR: &str = "account assets:checking
              goal yearly_goal due every year starting 2020/2/20
                  amount 1000 CAD
              expense groceries due every 5th
@@ -253,7 +264,7 @@ mod tests {
         // do the thing
         let account = match Account::parse(ACCOUNT_STR, '.', DEFAULT_DATE_FORMAT) {
             Ok(a) => a,
-            Err(e) => panic!(e)
+            Err(e) => panic!(e),
         };
 
         // test name
@@ -262,16 +273,27 @@ mod tests {
         // test envelopes
         {
             // expenses
-            assert_eq!(account.expense_envelopes.len(), 1, "no expense envelopes; there should be one");
+            assert_eq!(
+                account.expense_envelopes.len(),
+                1,
+                "no expense envelopes; there should be one"
+            );
             let ex_envelope = &account.expense_envelopes[0];
             assert_eq!(ex_envelope.get_name(), "groceries");
             assert_eq!(*ex_envelope.get_freq(), Frequency::Monthly(5));
 
             // goals
-            assert_eq!(account.goal_envelopes.len(), 1, "no goal envelopes; there should be one");
+            assert_eq!(
+                account.goal_envelopes.len(),
+                1,
+                "no goal envelopes; there should be one"
+            );
             let goal_envelope = &account.goal_envelopes[0];
             assert_eq!(goal_envelope.get_name(), "yearly_goal");
-            assert_eq!(*goal_envelope.get_freq(), Frequency::Annually(chrono::NaiveDate::from_ymd(2020, 2, 20)));
+            assert_eq!(
+                *goal_envelope.get_freq(),
+                Frequency::Annually(chrono::NaiveDate::from_ymd(2020, 2, 20))
+            );
         }
     }
 

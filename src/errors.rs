@@ -49,7 +49,12 @@ impl fmt::Display for SilverfoxError {
             SilverfoxError::Validation(v) => v.fmt(f),
             SilverfoxError::Parse(p) => p.fmt(f),
             SilverfoxError::Processing(p) => p.fmt(f),
-            SilverfoxError::File(p, e) => write!(f, "silverfox encountered an i/o error: {}\n(file: {})", e, p.display()),
+            SilverfoxError::File(p, e) => write!(
+                f,
+                "silverfox encountered an i/o error: {}\n(file: {})",
+                e,
+                p.display()
+            ),
             SilverfoxError::Csv(c) => c.fmt(f),
         }
     }
@@ -71,30 +76,6 @@ pub struct ParseError {
 
 impl Error for ParseError {}
 
-impl ParseError {
-    /// Sets the message of the error, returning itself for the convenience of chaining.
-    pub fn set_message(mut self, message: &str) -> Self {
-        self.message = Some(message.to_string());
-
-        self
-    }
-
-    /// Sets the context (chunk) of the error, returning itself for the convenience of chaining.
-    pub fn set_context(mut self, context: &str) -> Self {
-        self.context = Some(context.to_string());
-
-        self
-    }
-}
-
-impl Default for ParseError {
-    /// Returns a fresh, blank ParseError.
-    fn default() -> Self {
-        ParseError { context: None, message: None }
-    }
-
-}
-
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.message.is_some() && self.context.is_some() {
@@ -107,9 +88,16 @@ impl fmt::Display for ParseError {
         } else if let Some(a) = &self.message {
             write!(f, "silverfox ran across an issue in your journal: {}", a)
         } else if let Some(b) = &self.context {
-            write!(f, "silverfox couldn't understand this:\n\n{}\n\nbut no explanation was provided", b)
+            write!(
+                f,
+                "silverfox couldn't understand this:\n\n{}\n\nbut no explanation was provided",
+                b
+            )
         } else {
-            write!(f, "silverfox couldn't parse something, but no information was provided")
+            write!(
+                f,
+                "silverfox couldn't parse something, but no information was provided"
+            )
         }
     }
 }
@@ -143,7 +131,10 @@ impl ValidationError {
 impl Default for ValidationError {
     /// Returns a fresh, blank ValidationError.
     fn default() -> Self {
-        ValidationError { context: None, message: None }
+        ValidationError {
+            context: None,
+            message: None,
+        }
     }
 }
 
@@ -161,7 +152,10 @@ impl fmt::Display for ValidationError {
         } else if let Some(b) = &self.context {
             write!(f, "the following is invalid to silverfox:\n\n{}\n\nbut no further information was provided", b)
         } else {
-            write!(f, "silverfox found something invalid, but no information was provided")
+            write!(
+                f,
+                "silverfox found something invalid, but no information was provided"
+            )
         }
     }
 }
@@ -193,7 +187,10 @@ impl ProcessingError {
 impl Default for ProcessingError {
     /// Returns a fresh, blank ProcessingError.
     fn default() -> Self {
-        ProcessingError { context: None, message: None }
+        ProcessingError {
+            context: None,
+            message: None,
+        }
     }
 }
 
@@ -207,7 +204,11 @@ impl fmt::Display for ProcessingError {
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "your journal is valid, but silverfox couldn't process this: {}", a)
+            write!(
+                f,
+                "your journal is valid, but silverfox couldn't process this: {}",
+                a
+            )
         } else if let Some(b) = &self.context {
             write!(f, "your journal is valid, but silverfox couldn't process this:\n\n{}\n\nno further information was provided", b)
         } else {

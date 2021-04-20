@@ -1,6 +1,6 @@
 use crate::entry::{Entry, EntryStatus};
 use crate::errors::*;
-use crate::posting::{Posting, ClassicPosting};
+use crate::posting::{ClassicPosting, Posting};
 use crate::utils;
 use std::collections::{HashMap, HashSet};
 use std::collections::{LinkedList, VecDeque};
@@ -32,8 +32,10 @@ impl CsvImporter {
         rules_file: &Path,
         ledger_account_set: HashSet<String>,
     ) -> Result<Self, SilverfoxError> {
-        let csv_str = fs::read_to_string(csv_file).map_err(|e| SilverfoxError::file_error(csv_file, e))?;
-        let rules_str = fs::read_to_string(rules_file).map_err(|e| SilverfoxError::file_error(rules_file, e))?;
+        let csv_str =
+            fs::read_to_string(csv_file).map_err(|e| SilverfoxError::file_error(csv_file, e))?;
+        let rules_str = fs::read_to_string(rules_file)
+            .map_err(|e| SilverfoxError::file_error(rules_file, e))?;
 
         Self::from_strs(&csv_str, &rules_str, ledger_account_set)
     }
@@ -134,7 +136,8 @@ impl Rules {
     }
 
     fn add_from_file(&mut self, rules_file: &Path) -> Result<(), SilverfoxError> {
-        let s = fs::read_to_string(rules_file).map_err(|e| SilverfoxError::file_error(rules_file, e))?;
+        let s = fs::read_to_string(rules_file)
+            .map_err(|e| SilverfoxError::file_error(rules_file, e))?;
 
         self.add_from_str(&s)
     }
@@ -220,23 +223,26 @@ impl Rules {
     fn add_from_line(&mut self, mut line: &str) -> Result<(), SilverfoxError> {
         line = line.trim_start();
 
-        let split_index =
-            match line.chars().position(|c| c.is_whitespace()) {
-                Some(i) => i,
-                None => return Err(SilverfoxError::from(ParseError {
+        let split_index = match line.chars().position(|c| c.is_whitespace()) {
+            Some(i) => i,
+            None => {
+                return Err(SilverfoxError::from(ParseError {
                     message: Some(format!(
                         "this rule has no value. use `-` if you want to discard a value:\n\n{} -",
                         line.trim()
                     )),
                     context: Some(line.to_string()),
-                })),
-            };
+                }))
+            }
+        };
 
         // the first token is the rule name
         let rule_name = &line[..split_index];
 
         // the rest of the line is the value
-        let rule_value = String::from(&line[split_index + 1..]).trim_start().to_string();
+        let rule_value = String::from(&line[split_index + 1..])
+            .trim_start()
+            .to_string();
 
         if rule_value.trim() == "-" {
             // resets a value
@@ -248,7 +254,9 @@ impl Rules {
                 "description" => self.description = String::from("%description%"),
                 "fields" => {
                     return Err(SilverfoxError::from(ValidationError {
-                        message: Some(String::from("`fields` cannot be discarded; a value is required")),
+                        message: Some(String::from(
+                            "`fields` cannot be discarded; a value is required",
+                        )),
                         context: None,
                     }))
                 }
@@ -256,9 +264,10 @@ impl Rules {
                     // because root-level subrules should be handled by add_from_str, this should not
                     // be called unless rules are being added line by line, which is what happens when
                     // parsing Subrules
-                    return Err(SilverfoxError::from(
-                        ParseError::default().set_message("nested subrules aren't allowed"),
-                    ));
+                    return Err(SilverfoxError::from(ParseError {
+                        message: Some("nested subrules aren't allowed".to_string()),
+                        context: None,
+                    }));
                 }
                 "include" | "use" => self.add_from_file(&PathBuf::from(rule_value))?,
                 "payee" => self.payee = String::new(),
@@ -289,11 +298,12 @@ impl Rules {
                 "date" => self.date_str = rule_value,
                 "decimal_symbol" | "decimal" => {
                     if rule_value.len() > 1 {
-                        return Err(SilverfoxError::from(
-                            ParseError::default()
-                                .set_message("decimal_symbol should be a single character")
-                                .set_context(line),
-                        ));
+                        return Err(SilverfoxError::from(ParseError {
+                            message: Some(
+                                "decimal_symbol should be a single character".to_string(),
+                            ),
+                            context: Some(line.to_string()),
+                        }));
                     } else {
                         self.decimal_symbol = rule_value.chars().next().unwrap();
                     }
@@ -308,24 +318,26 @@ impl Rules {
                     // because root-level subrules should be handled by add_from_str, this should not
                     // be called unless rules are being added line by line, which is what happens when
                     // parsing Subrules
-                    return Err(SilverfoxError::from(
-                        ParseError::default().set_message("nested subrules aren't allowed"),
-                    ));
+                    return Err(SilverfoxError::from(ParseError {
+                        message: Some("nested subrules aren't allowed".to_string()),
+                        context: None,
+                    }));
                 }
                 "include" | "use" => self.add_from_file(&PathBuf::from(rule_value))?,
                 "payee" => self.payee = rule_value,
                 "skip" => {
-                    self.skip =
-                        match rule_value.parse::<i32>() {
-                            Ok(n) => n,
-                            Err(e) => return Err(SilverfoxError::from(ParseError {
+                    self.skip = match rule_value.parse::<i32>() {
+                        Ok(n) => n,
+                        Err(e) => {
+                            return Err(SilverfoxError::from(ParseError {
                                 message: Some(format!(
                                     "the `skip` rule couldn't be parsed because of this error: {}",
                                     e
                                 )),
                                 context: None,
-                            })),
+                            }))
                         }
+                    }
                 }
                 "status" => {
                     self.status = rule_value;
@@ -364,15 +376,17 @@ impl Rules {
             }
         }
         // otherwise, continue on
-    
+
         // if accounts are blank, add default
         if self.accounts.is_empty() {
-            self.accounts.insert(String::from(""), String::from("%account%"));
+            self.accounts
+                .insert(String::from(""), String::from("%account%"));
         }
 
         // if accounts are blank, add default
         if self.amount_strs.is_empty() {
-            self.amount_strs.insert(String::from(""), String::from("%amount%"));
+            self.amount_strs
+                .insert(String::from(""), String::from("%amount%"));
         }
 
         // create the variables map by reading from the fields in the csv record
@@ -510,9 +524,9 @@ impl From<&Rules> for Subrules {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::amount::Amount;
     use crate::posting::Cost;
-    use super::*;
 
     const RULES_STR: &str = "fields date, description, amount, currency, native_price, other
 
@@ -605,9 +619,20 @@ test5
                 mag: 11000.0,
                 symbol: None,
             };
-            let posting0_0 =
-                Posting::from(ClassicPosting::new("assets:test", Some(amount0), Some(Cost::UnitCost(price0)), None, None));
-            let posting0_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
+            let posting0_0 = Posting::from(ClassicPosting::new(
+                "assets:test",
+                Some(amount0),
+                Some(Cost::UnitCost(price0)),
+                None,
+                None,
+            ));
+            let posting0_1 = Posting::from(ClassicPosting::new(
+                "income:unknown",
+                None,
+                None,
+                None,
+                None,
+            ));
             entry0 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 10, 9),
                 EntryStatus::Cleared,
@@ -630,9 +655,20 @@ test5
                 mag: 10000.0,
                 symbol: None,
             };
-            let posting1_0 =
-                Posting::from(ClassicPosting::new("assets:test", Some(amount1), Some(Cost::UnitCost(price1)), None, None));
-            let posting1_1 = Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None));
+            let posting1_0 = Posting::from(ClassicPosting::new(
+                "assets:test",
+                Some(amount1),
+                Some(Cost::UnitCost(price1)),
+                None,
+                None,
+            ));
+            let posting1_1 = Posting::from(ClassicPosting::new(
+                "expenses:unknown",
+                None,
+                None,
+                None,
+                None,
+            ));
             entry1 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 11, 12),
                 EntryStatus::Cleared,
@@ -655,9 +691,20 @@ test5
                 mag: 9000.0,
                 symbol: None,
             };
-            let posting2_0 =
-                Posting::from(ClassicPosting::new("assets:test", Some(amount2), Some(Cost::UnitCost(price2)), None, None));
-            let posting2_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
+            let posting2_0 = Posting::from(ClassicPosting::new(
+                "assets:test",
+                Some(amount2),
+                Some(Cost::UnitCost(price2)),
+                None,
+                None,
+            ));
+            let posting2_1 = Posting::from(ClassicPosting::new(
+                "income:unknown",
+                None,
+                None,
+                None,
+                None,
+            ));
             entry2 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 12, 13),
                 EntryStatus::Cleared,
@@ -680,9 +727,20 @@ test5
                 mag: 8000.0,
                 symbol: None,
             };
-            let posting3_0 =
-                Posting::from(ClassicPosting::new("assets:test", Some(amount3), Some(Cost::UnitCost(price3)), None, None));
-            let posting3_1 = Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None));
+            let posting3_0 = Posting::from(ClassicPosting::new(
+                "assets:test",
+                Some(amount3),
+                Some(Cost::UnitCost(price3)),
+                None,
+                None,
+            ));
+            let posting3_1 = Posting::from(ClassicPosting::new(
+                "expenses:unknown",
+                None,
+                None,
+                None,
+                None,
+            ));
             entry3 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 1, 2),
                 EntryStatus::Cleared,
@@ -705,9 +763,20 @@ test5
                 mag: 12000.0,
                 symbol: None,
             };
-            let posting4_0 =
-                Posting::from(ClassicPosting::new("assets:test", Some(amount4), Some(Cost::UnitCost(price4)), None, None));
-            let posting4_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None, None));
+            let posting4_0 = Posting::from(ClassicPosting::new(
+                "assets:test",
+                Some(amount4),
+                Some(Cost::UnitCost(price4)),
+                None,
+                None,
+            ));
+            let posting4_1 = Posting::from(ClassicPosting::new(
+                "income:unknown",
+                None,
+                None,
+                None,
+                None,
+            ));
             entry4 = Entry::new(
                 chrono::NaiveDate::from_ymd(2020, 2, 14),
                 EntryStatus::Cleared,
