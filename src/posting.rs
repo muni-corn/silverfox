@@ -39,17 +39,19 @@ impl EnvelopePosting {
         let account_name = if let Some(a) = tokens.next() {
             String::from(a)
         } else {
-            return Err(ParseError::default()
-                .set_message("probably missing an account name")
-                .set_context(line));
+            return Err(ParseError {
+                message: Some("probably missing an account name".to_string()),
+                context: Some(line.to_string()),
+            });
         };
 
         let envelope_name = if let Some(e) = tokens.next() {
             String::from(e)
         } else {
-            return Err(ParseError::default()
-                .set_message("probably missing an envelope name")
-                .set_context(line));
+            return Err(ParseError {
+                message: Some("probably missing an envelope name".to_string()),
+                context: Some(line.to_string()),
+            });
         };
 
         // hopefully collects the remainder of the tokens, and not all of the beginning ones too
@@ -131,9 +133,10 @@ impl Posting {
                     )?))
                 }
             }
-            None => Err(SilverfoxError::from(
-                ParseError::default().set_message("nothing to parse for a Posting"),
-            )),
+            None => Err(SilverfoxError::from(ParseError {
+                message: Some("nothing to parse for a Posting".to_string()),
+                context: None,
+            })),
         }
     }
 

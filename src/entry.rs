@@ -119,7 +119,10 @@ impl Entry {
         let mut entry = if let Some(l) = lines.next() {
             Self::parse_header(l, date_format)?
         } else {
-            let err = ParseError::default().set_context(chunk).set_message("header couldn't be parsed because it doesn't exist. this is an error with silverfox's programming. please report it!");
+            let err = ParseError {
+                context: Some(chunk.to_string()),
+                message: Some("header couldn't be parsed because it doesn't exist. this is an error with silverfox's programming. please report it!".to_string())
+            };
             return Err(SilverfoxError::from(err));
         };
 
@@ -150,7 +153,10 @@ impl Entry {
         let header_tokens = clean_header.split_whitespace().collect::<Vec<&str>>();
 
         if header_tokens.is_empty() {
-            return Err(ParseError::default().set_message("couldn't parse an entry header because it's blank.\nthis is an error with silverfox's programming; please report it!"));
+            return Err(ParseError {
+                message: Some("couldn't parse an entry header because it's blank.\nthis is an error with silverfox's programming; please report it!".to_string()),
+                context: None,
+            });
         }
 
         // parse date
@@ -184,7 +190,10 @@ impl Entry {
                 (d, Some(p))
             } else {
                 // only opening bracket exists, and that's kind of an issue
-                return Err(ParseError::default().set_message("silverfox wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]").set_context(header));
+                return Err(ParseError {
+                    message: Some("silverfox wanted to parse a payee in this header, but couldn't because it wasn't given a closing square bracket: ]".to_string()),
+                    context: Some(header.to_string()),
+                });
             }
         } else {
             (description_and_payee.to_string(), None)
@@ -401,7 +410,7 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
             Some(match_str) => account_name.contains(match_str),
             // TODO: an issue ticket is open to further solidify whether or not an account is an
             // "asset", so this will be changed soon (it's kinda dumb right now)
-            None => account_name.starts_with("asset"), 
+            None => account_name.starts_with("asset"),
         };
 
         let (positive_name, negative_name, amounts) = {

@@ -162,12 +162,16 @@ impl Frequency {
             } else if what == "year" {
                 match starting_date {
                     Some(d) => Ok(Self::Annually(d)),
-                    None => Err(ParseError::default().set_context(s).set_message("envelopes due annually require a `starting` date so that silverfox knows which day of the year the envelope is due"))
+                    None => Err(ParseError{
+                        context: Some(s.to_string()),
+                        message: Some("envelopes due annually require a `starting` date so that silverfox knows which day of the year the envelope is due".to_string()),
+                    })
                 }
             } else {
-                Err(ParseError::default()
-                    .set_context(s)
-                    .set_message("invalid frequency"))
+                Err(ParseError {
+                    context: Some(s.to_string()),
+                    message: Some("invalid frequency".to_string()),
+                })
             }
         } else {
             // probably not repeating, so let's just try to parse a date
@@ -363,9 +367,12 @@ impl Envelope {
         let mut envelope = if let Some(l) = lines.next() {
             Self::from_header(l, date_format, account_name)?
         } else {
-            let err = ParseError::default()
-                .set_context(&chunk)
-                .set_message("envelope header can't be parsed because it doesn't exist");
+            let err = ParseError {
+                context: Some(chunk.to_string()),
+                message: Some(
+                    "envelope header can't be parsed because it doesn't exist".to_string(),
+                ),
+            };
             return Err(err);
         };
 
@@ -460,7 +467,10 @@ impl Envelope {
                         "the property `{}` to an envelope (`{}` in {}) is blank",
                         line_split[0], self.name, account_name
                     );
-                    let err = ParseError::default().set_message(&message);
+                    let err = ParseError {
+                        message: Some(message),
+                        context: None,
+                    };
                     return Err(err);
                 }
             }
@@ -495,10 +505,13 @@ impl Envelope {
                         }
                     }
                     _ => {
-                        return Err(ParseError::default().set_message(
-                            format!("the `{}` property isn't understood by silverfox", key)
-                                .as_str(),
-                        ))
+                        return Err(ParseError {
+                            message: Some(format!(
+                                "the `{}` property isn't understood by silverfox",
+                                key
+                            )),
+                            context: None,
+                        })
                     }
                 }
             }
@@ -513,7 +526,10 @@ impl Envelope {
         match arg_count.cmp(&1) {
             Ordering::Greater => {
                 // more than one token? account probably has spaces in it
-                Err(ParseError::default().set_message("remember that account names can't contain spaces; this `for` property couldn't be parsed correctly").set_context(s))
+                Err(ParseError {
+                    message: Some("remember that account names can't contain spaces; this `for` property couldn't be parsed correctly".to_string()),
+                    context: Some(s.to_string()),
+                })
             }
             Ordering::Less => {
                 // something less than one token? that's an issue
@@ -552,7 +568,10 @@ impl Envelope {
                     frequency_index = i + " due ".len();
                 },
                 // if that's not found, then pbpbpbpbpbpbpbpbpbp
-                None => return Err(ParseError::default().set_message("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date").set_context(clean_header))
+                None => return Err(ParseError {
+                    message: Some("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date".to_string()),
+                    context: Some(clean_header.to_string())
+                })
             }
         }
 
