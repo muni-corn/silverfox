@@ -202,15 +202,6 @@ mark, the assertion operates on a per-currency basis:
     assets:new_wallet        32.0 BAT
 ```
 
-With two exclamation marks, the assertion operates on the
-total balance of the account:
-
-```
-2019/08/02 * Savings account closure
-    assets:savings     -1000 !! 0
-    assets:new_acct     1000
-```
-
 ## Envelopes
 
 ### Configuration

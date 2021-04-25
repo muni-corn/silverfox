@@ -464,12 +464,12 @@ impl Rules {
                 let single_posting_amount = postings[0].get_amount();
                 if let Some(amount) = single_posting_amount {
                     if amount.mag < 0.0 {
-                        postings.push(Posting::from(ClassicPosting::new("expenses:unknown", None, None, None, None)))
+                        postings.push(Posting::from(ClassicPosting::new("expenses:unknown", None, None, None)))
                     } else if amount.mag > 0.0 {
-                        postings.push(Posting::from(ClassicPosting::new("income:unknown", None, None, None, None)))
+                        postings.push(Posting::from(ClassicPosting::new("income:unknown", None, None, None)))
                     } else {
                         // don't freak out about amounts with zero amounts
-                        postings.push(Posting::from(ClassicPosting::new("unknown", None, None, None, None)))
+                        postings.push(Posting::from(ClassicPosting::new("unknown", None, None, None)))
                     }
 
                     Ok(Entry::new(date, status, description, payee, postings, comment))
@@ -624,11 +624,9 @@ test5
                 Some(amount0),
                 Some(Cost::UnitCost(price0)),
                 None,
-                None,
             ));
             let posting0_1 = Posting::from(ClassicPosting::new(
                 "income:unknown",
-                None,
                 None,
                 None,
                 None,
@@ -660,11 +658,9 @@ test5
                 Some(amount1),
                 Some(Cost::UnitCost(price1)),
                 None,
-                None,
             ));
             let posting1_1 = Posting::from(ClassicPosting::new(
                 "expenses:unknown",
-                None,
                 None,
                 None,
                 None,
@@ -696,11 +692,9 @@ test5
                 Some(amount2),
                 Some(Cost::UnitCost(price2)),
                 None,
-                None,
             ));
             let posting2_1 = Posting::from(ClassicPosting::new(
                 "income:unknown",
-                None,
                 None,
                 None,
                 None,
@@ -732,11 +726,9 @@ test5
                 Some(amount3),
                 Some(Cost::UnitCost(price3)),
                 None,
-                None,
             ));
             let posting3_1 = Posting::from(ClassicPosting::new(
                 "expenses:unknown",
-                None,
                 None,
                 None,
                 None,
@@ -768,11 +760,9 @@ test5
                 Some(amount4),
                 Some(Cost::UnitCost(price4)),
                 None,
-                None,
             ));
             let posting4_1 = Posting::from(ClassicPosting::new(
                 "income:unknown",
-                None,
                 None,
                 None,
                 None,

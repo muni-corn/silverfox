@@ -10,7 +10,6 @@ pub struct ClassicPosting {
     account: String,
     cost_assertion: Option<Cost>,
     balance_assertion: Option<Amount>,
-    total_balance_assertion: Option<Amount>,
 }
 
 #[derive(Clone, Debug)]
@@ -202,13 +201,11 @@ impl ClassicPosting {
         amount: Option<Amount>,
         cost_assertion: Option<Cost>,
         balance_assertion: Option<Amount>,
-        total_balance_assertion: Option<Amount>,
     ) -> Self {
         Self {
             account: String::from(account),
             amount,
             balance_assertion,
-            total_balance_assertion,
             cost_assertion,
         }
     }
@@ -219,7 +216,6 @@ impl ClassicPosting {
             account: String::new(),
             cost_assertion: None,
             balance_assertion: None,
-            total_balance_assertion: None,
         }
     }
 
@@ -284,12 +280,6 @@ impl ClassicPosting {
                 Err(e) => return Err(e),
             };
 
-        self.total_balance_assertion =
-            match Self::parse_total_balance_assertion_amount(amount_tokens, decimal_symbol) {
-                Ok(a) => a,
-                Err(e) => return Err(e),
-            };
-
         self.cost_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
             Ok(price_opt) => {
                 // parsing succeeded, if there is a price, use that
@@ -324,15 +314,6 @@ impl ClassicPosting {
     ) -> Result<Option<Amount>, ParseError> {
         extract_amount(amount_tokens, decimal_symbol, "!", |&s| {
             s == "!!" || s == "@" || s == "="
-        })
-    }
-
-    fn parse_total_balance_assertion_amount(
-        amount_tokens: &[&str],
-        decimal_symbol: char,
-    ) -> Result<Option<Amount>, ParseError> {
-        extract_amount(amount_tokens, decimal_symbol, "!!", |&s| {
-            s == "!" || s == "@" || s == "="
         })
     }
 
@@ -423,10 +404,6 @@ impl fmt::Display for ClassicPosting {
 
         if let Some(b) = &self.balance_assertion {
             postlude.push_str(&format!(" ! {}", b));
-        }
-
-        if let Some(t) = &self.total_balance_assertion {
-            postlude.push_str(&format!(" !! {}", t));
         }
 
         write!(f, "{:50} {}", self.account, postlude)
