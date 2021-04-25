@@ -94,8 +94,8 @@ impl Entry {
             status,
             description,
             payee,
-            postings,
             comment,
+            postings,
         }
     }
 
@@ -586,7 +586,7 @@ mod tests {
                 );
                 assert_eq!(e.postings.len(), 2, "postings should have two items");
             }
-            Err(e) => panic!(e),
+            Err(e) => panic!("{}", e),
         };
     }
 }
