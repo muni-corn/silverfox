@@ -264,7 +264,7 @@ mod tests {
         // do the thing
         let account = match Account::parse(ACCOUNT_STR, '.', DEFAULT_DATE_FORMAT) {
             Ok(a) => a,
-            Err(e) => panic!(e),
+            Err(e) => panic!("{}", e),
         };
 
         // test name

@@ -289,14 +289,7 @@ impl ClassicPosting {
                     // if no price, try to parse total cost
                     match Self::parse_total_cost_amount(amount_tokens, decimal_symbol) {
                         Ok(total_cost_opt) => {
-                            // successful, so see if something's there
-                            if let Some(total_cost) = total_cost_opt {
-                                // if there is, use it
-                                Some(total_cost)
-                            } else {
-                                // nothing there? nothing will be used
-                                None
-                            }
+                            total_cost_opt
                         }
                         Err(e) => return Err(e),
                     }
