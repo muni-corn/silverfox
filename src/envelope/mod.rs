@@ -116,9 +116,9 @@ pub enum Frequency {
     Never,
     Once(NaiveDate),
     Weekly(chrono::Weekday),
-    Biweekly(NaiveDate),
+    Biweekly,
     Monthly(u32),
-    Bimonthly(NaiveDate),
+    Bimonthly,
     // Quarterly(NaiveDate),
     // Semiannually(NaiveDate),
     Annually(NaiveDate),
@@ -142,9 +142,9 @@ impl Frequency {
             // parse "every others"
             // remember: the `starting` clause is already trimmed
             if Self::parse_weekday(what).is_some() {
-                Ok(Self::Biweekly(starting_date.unwrap()))
+                Ok(Self::Biweekly)
             } else if Self::parse_day_of_month(what).is_some() {
-                Ok(Self::Bimonthly(starting_date.unwrap()))
+                Ok(Self::Bimonthly)
             } else {
                 Err(ParseError {
                     context: Some(s.to_string()),
@@ -210,14 +210,14 @@ impl Frequency {
     }
 
     /// Gets the Frequency's last due date based on the next due date
-    pub fn get_last_due_date(&self) -> Option<NaiveDate> {
+    pub fn get_last_due_date(&self, starting_date: Option<NaiveDate>) -> Option<NaiveDate> {
         // get the next due date and just subtract
-        match self.get_next_due_date() {
+        match self.get_next_due_date(starting_date) {
             Some(next_date) => match self {
                 Self::Weekly(_) => Some(next_date - chrono::Duration::days(7)),
-                Self::Biweekly(_) => Some(next_date - chrono::Duration::days(14)),
+                Self::Biweekly => Some(next_date - chrono::Duration::days(14)),
                 Self::Monthly(_) => Some(Self::subtract_months(next_date, 1)),
-                Self::Bimonthly(_) => Some(Self::subtract_months(next_date, 2)),
+                Self::Bimonthly => Some(Self::subtract_months(next_date, 2)),
                 Self::Annually(d) => Some(d.with_year(d.year() - 1).unwrap()),
                 _ => None,
             },
@@ -245,7 +245,7 @@ impl Frequency {
 
     // this function is pretty long, so we should probably break it into smaller functions
     /// Calculates and returns the next due date based on this Frequency.
-    pub fn get_next_due_date(&self) -> Option<NaiveDate> {
+    pub fn get_next_due_date(&self, starting_date: Option<NaiveDate>) -> Option<NaiveDate> {
         let today = Local::today().naive_local();
         match self {
             Self::Never => None,
@@ -266,26 +266,29 @@ impl Frequency {
 
                 Some(next)
             }
-            Self::Biweekly(starting_date) => {
+            Self::Biweekly => if let Some(start) = starting_date {
                 // ATTENTION: `w` is not needed here because `starting_date` is required to be on
                 // the same weekday as `w` itself
 
                 // if starting date is after today, use that
-                let duration_passed = today.signed_duration_since(*starting_date);
+                let duration_passed = today.signed_duration_since(start);
                 let periods_passed = duration_passed.num_weeks() / 2;
-                let next = *starting_date + chrono::Duration::weeks((periods_passed + 1) * 2);
+                let next = start + chrono::Duration::weeks((periods_passed + 1) * 2);
                 Some(next)
+            } else {
+                // TODO: Decide if we should return an Err instead?
+                None
             }
             Self::Monthly(day_of_month) => {
                 Some(Self::next_date_by_day_of_month(today, *day_of_month))
             }
-            Self::Bimonthly(starting_date) => {
-                if starting_date > &today {
-                    Some(*starting_date)
+            Self::Bimonthly => if let Some(start) = starting_date {
+                if start > today {
+                    Some(start)
                 } else {
                     // brute force method until we find something better to do...
-                    let day_of_month = starting_date.day();
-                    let mut date = *starting_date;
+                    let day_of_month = start.day();
+                    let mut date = start;
                     while date < today {
                         let month0_plus_two = date.month0() + 2;
                         let new_year = date.year() + month0_plus_two as i32 / 12;
@@ -302,6 +305,9 @@ impl Frequency {
 
                     Some(date)
                 }
+            } else {
+                // TODO: Decide if we should return an Err instead?
+                None
             }
             Self::Annually(starting_date) => {
                 if starting_date > &today {
@@ -781,7 +787,7 @@ amount")
             self.now_amount += amount.clone();
         } else if amount.mag > 0.0 {
             // add to an envelope, depending on the date
-            if let Some(d) = self.freq.get_last_due_date() {
+            if let Some(d) = self.freq.get_last_due_date(self.starting_date) {
                 if date < d {
                     // anything before the last due date is ready
                     self.now_amount += amount.clone();
@@ -892,10 +898,10 @@ amount")
         let starting_date = if let Some(d) = self.starting_date {
             d
         } else {
-            return self.freq.get_next_due_date();
+            return self.freq.get_next_due_date(self.starting_date);
         };
 
-        let freq_next_date = if let Some(d) = self.freq.get_next_due_date() {
+        let freq_next_date = if let Some(d) = self.freq.get_next_due_date(self.starting_date) {
             d
         } else {
             return Some(starting_date);
