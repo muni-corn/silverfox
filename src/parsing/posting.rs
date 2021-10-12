@@ -73,7 +73,7 @@ fn parse_envelope_posting_information(
     let (leftover, amount) = super::amount::parse_amount(decimal_symbol)(input)?;
 
     Ok((
-        &leftover,
+        leftover,
         EnvelopePosting::new(&account_name, amount, &envelope_name),
     ))
 }
@@ -84,7 +84,7 @@ fn parse_normal_posting_information<'a>(
     account_name: &str,
     decimal_symbol: char,
 ) -> IResult<&'a str, ClassicPosting, ParseError> {
-    let orig = input.to_string();
+    let _orig = input.to_string();
 
     let (input, amount) = opt(parse_amount(decimal_symbol))(input).map_err(|e| e.map(|e| ParseError {
         context: Some(input.to_string()),

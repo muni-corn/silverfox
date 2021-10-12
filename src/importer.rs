@@ -472,7 +472,7 @@ impl Rules {
                         postings.push(Posting::from(ClassicPosting::new("unknown", None, None, None)))
                     }
 
-                    let entry = EntryBuilder::new().date(date).status(status).description(description).payee(payee).postings(postings).comment(comment).build(&account_set)?;
+                    let entry = EntryBuilder::new().date(date).status(status).description(description).payee(payee).postings(postings).comment(comment).build(account_set)?;
 
                     Ok(entry)
                 } else {
@@ -483,7 +483,7 @@ impl Rules {
                 Err(SilverfoxError::from(ValidationError::default().set_context(record.as_slice()).set_message("this record produced an entry without any postings. make sure you've included rules for `account` and `amount` so that postings can be generated")))
             },
             _ => {
-                let entry = EntryBuilder::new().date(date).status(status).description(description).payee(payee).postings(postings).comment(comment).build(&account_set)?;
+                let entry = EntryBuilder::new().date(date).status(status).description(description).payee(payee).postings(postings).comment(comment).build(account_set)?;
 
                 Ok(entry)
             }

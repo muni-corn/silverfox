@@ -25,7 +25,7 @@ pub fn parse_amount(decimal_symbol: char) -> impl FnMut(&str) -> IResult<&str, A
                 },
                 mag: quantity,
             }
-        })(&input)
+        })(input)
         .map_err(|e| {
             e.map(|_| ParseError {
                 context: Some(input.to_string()),

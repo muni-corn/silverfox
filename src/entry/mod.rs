@@ -1,9 +1,7 @@
-use nom::Finish;
-
 use crate::amount::{Amount, AmountPool};
 use crate::errors::*;
 use crate::posting::Posting;
-use crate::utils;
+use nom::Finish;
 use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
