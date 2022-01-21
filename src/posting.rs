@@ -238,7 +238,7 @@ impl ClassicPosting {
             Err(SilverfoxError::from(e))
         } else if let Err(e) = posting.parse_assertion_amounts(&amount_tokens, decimal_symbol) {
             Err(SilverfoxError::from(e))
-        } else if let Err(e) = posting.validate(&accounts) {
+        } else if let Err(e) = posting.validate(accounts) {
             Err(SilverfoxError::from(e))
         } else {
             Ok(posting)

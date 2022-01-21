@@ -20,6 +20,6 @@ pub fn remove_comments(s: &str) -> &str {
     if let Some(i) = cut_index {
         &s[..i]
     } else {
-        &s
+        s
     }
 }

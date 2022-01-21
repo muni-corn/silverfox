@@ -56,7 +56,7 @@ impl Account {
                         &envelope_chunk,
                         &account.name,
                         decimal_symbol,
-                        &date_format,
+                        date_format,
                     )?;
 
                     if let Err(e) = account.add_envelope(new_envelope) {
@@ -74,7 +74,7 @@ impl Account {
         // parse the remainder
         if !envelope_chunk.trim().is_empty() {
             let new_envelope =
-                Envelope::parse(&envelope_chunk, &account.name, decimal_symbol, &date_format)?;
+                Envelope::parse(&envelope_chunk, &account.name, decimal_symbol, date_format)?;
 
             if let Err(e) = account.add_envelope(new_envelope) {
                 return Err(SilverfoxError::from(e));

@@ -102,7 +102,7 @@ impl CommandFlags {
             Subcommand::Import => {
                 match &self.csv_file {
                     Some(c) => {
-                        return ledger.import_csv(&c, self.rules_file.as_ref())
+                        return ledger.import_csv(c, self.rules_file.as_ref())
                     },
                     None => {
                         return Err(SilverfoxError::Basic(String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")))
