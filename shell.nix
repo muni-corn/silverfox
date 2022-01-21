@@ -1,8 +1,6 @@
 { pkgs ? import <nixpkgs> { } }:
-with pkgs;
-mkShell {
-  buildInputs = [
-    rust-bin.nightly.latest.default
-    cargo
-  ];
+pkgs.mkShell {
+  buildInputs = builtins.attrValues {
+    inherit (pkgs) cargo cargo-watch;
+  } ++ [ pkgs.rust-bin.nightly.latest.default ];
 }
