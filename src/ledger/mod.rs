@@ -191,7 +191,10 @@ impl Ledger {
     /// Appends the entry to the file of the Ledger, then internally adds the Entry itself to the
     /// Ledger.
     fn append_entry(&mut self, entry: Entry) -> Result<(), SilverfoxError> {
-        let mut file = match fs::OpenOptions::new().append(true).open(&self.original_file_path) {
+        let mut file = match fs::OpenOptions::new()
+            .append(true)
+            .open(&self.original_file_path)
+        {
             Ok(f) => f,
             Err(e) => return Err(SilverfoxError::file_error(&self.original_file_path, e)),
         };

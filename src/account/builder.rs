@@ -1,6 +1,6 @@
 use crate::amount::AmountPool;
-use crate::envelope::EnvelopeType;
 use crate::envelope::builder::EnvelopeBuilder;
+use crate::envelope::EnvelopeType;
 use crate::errors::SilverfoxResult;
 
 use super::Account;

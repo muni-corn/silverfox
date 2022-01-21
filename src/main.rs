@@ -12,9 +12,11 @@ pub mod utils;
 
 fn main() {
     match flags::CommandFlags::parse_from_env() {
-        Ok(f) => if let Err(e) = f.execute() {
-            eprintln!("{}", e)
-        },
+        Ok(f) => {
+            if let Err(e) = f.execute() {
+                eprintln!("{}", e)
+            }
+        }
         Err(e) => eprintln!("{}", e),
     }
 }

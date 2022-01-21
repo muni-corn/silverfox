@@ -84,10 +84,7 @@ impl From<EnvelopePosting> for Posting {
 
 impl Posting {
     #[deprecated = "the `silverfox::parsing` module provides tools for parsing silverfox data. this function uses that module internally, but scraps any leftover characters not part of the parsed amount"]
-    pub fn parse(
-        line: &str,
-        decimal_symbol: char,
-    ) -> Result<Self, ParseError> {
+    pub fn parse(line: &str, decimal_symbol: char) -> Result<Self, ParseError> {
         crate::parsing::posting::parse_posting(decimal_symbol)(line)
             .finish()
             .map(|(_, p)| p)

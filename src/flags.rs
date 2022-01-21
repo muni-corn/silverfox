@@ -61,12 +61,10 @@ impl CommandFlags {
                             flags.rules_file = Some(PathBuf::from(arg_value));
                         }
                         _ => {
-                            return Err(SilverfoxError::Basic(
-                                format!(
-                                    "silverfox doesn't recognize this flag: `{}`",
-                                    arg
-                                ),
-                            ))
+                            return Err(SilverfoxError::Basic(format!(
+                                "silverfox doesn't recognize this flag: `{}`",
+                                arg
+                            )))
                         }
                     }
                 }
@@ -182,7 +180,10 @@ fn display_help() {
 fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, SilverfoxError> {
     match arg {
         Some(a) => Ok(a),
-        None => Err(SilverfoxError::Basic(format!("no value was supplied for the argument `{}`", name))),
+        None => Err(SilverfoxError::Basic(format!(
+            "no value was supplied for the argument `{}`",
+            name
+        ))),
     }
 }
 

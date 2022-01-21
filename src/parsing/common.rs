@@ -29,19 +29,47 @@ pub fn is_amount_symbol_char(c: char) -> bool {
     !is_amount_quantity_char(c) && !c.is_whitespace() && !";/@=!".contains(c)
 }
 
+/// Parses and returns a date provided a custom format
+pub fn date<'a>(format: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, NaiveDate, ParseError> {
+    move |input| {
+        if format.chars().any(|c| c.is_whitespace()) {
+            Err(nom::Err::Failure(ParseError {
+                context: Some(format.to_string()),
+                message: Some(String::from("your date format cannot contain spaces")),
+            }))
+        } else {
+        }
+    }
+}
+
 mod tests {
     use super::*;
 
     #[test]
     fn test_eol_comment() {
-        assert_eq!(eol_comment("// this is a slash comment"), Ok(("", "this is a slash comment")));
-        assert_eq!(eol_comment("; this is a semicolon comment"), Ok(("", "this is a semicolon comment")));
+        assert_eq!(
+            eol_comment("// this is a slash comment"),
+            Ok(("", "this is a slash comment"))
+        );
+        assert_eq!(
+            eol_comment("; this is a semicolon comment"),
+            Ok(("", "this is a semicolon comment"))
+        );
 
         // we've opted to preserve extra comment symbols
-        assert_eq!(eol_comment("//// thicc comment"), Ok(("", "// thicc comment")));
-        assert_eq!(eol_comment(";;;; also thicc comment"), Ok(("", ";;; also thicc comment")));
+        assert_eq!(
+            eol_comment("//// thicc comment"),
+            Ok(("", "// thicc comment"))
+        );
+        assert_eq!(
+            eol_comment(";;;; also thicc comment"),
+            Ok(("", ";;; also thicc comment"))
+        );
 
-        assert_eq!(eol_comment("//nice and comfortable"), Ok(("", "nice and comfortable")));
+        assert_eq!(
+            eol_comment("//nice and comfortable"),
+            Ok(("", "nice and comfortable"))
+        );
         assert_eq!(eol_comment(";cozy"), Ok(("", "cozy")));
 
         assert_eq!(eol_comment("///thicc"), Ok(("", "/thicc")));

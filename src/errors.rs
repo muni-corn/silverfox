@@ -104,8 +104,7 @@ impl fmt::Display for ParseError {
             write!(
                 f,
                 "silverfox couldn't understand the following:\n\n{}\n\n{}",
-                context,
-                message,
+                context, message,
             )
         } else if let Some(m) = &self.message {
             write!(f, "silverfox ran across an issue in your journal: {}", m)
@@ -128,14 +127,17 @@ impl nom::error::ParseError<&str> for ParseError {
     fn from_error_kind(input: &str, kind: nom::error::ErrorKind) -> Self {
         Self {
             context: Some(input.to_string()),
-            message: Some(format!("error occurred in {:?} parser", kind))
+            message: Some(format!("error occurred in {:?} parser", kind)),
         }
     }
 
     fn append(input: &str, kind: nom::error::ErrorKind, other: Self) -> Self {
         Self {
             context: Some(input.to_string()),
-            message: Some(format!("error occurred in {:?} parser.\nadditionally, {}", kind, other))
+            message: Some(format!(
+                "error occurred in {:?} parser.\nadditionally, {}",
+                kind, other
+            )),
         }
     }
 }

@@ -262,9 +262,7 @@ mod tests {
 
         // total cost assertions
         assert_eq!(
-            parse_posting('.')(
-                "expenses:yo 123.45 BTC == 100_000 ; double equals are nice"
-            ),
+            parse_posting('.')("expenses:yo 123.45 BTC == 100_000 ; double equals are nice"),
             Ok((
                 " ; double equals are nice",
                 Posting::Classic(ClassicPosting::new(

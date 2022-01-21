@@ -1,6 +1,9 @@
 use nom::combinator::map_res;
 use nom::sequence::preceded;
-use nom::{IResult, branch::alt, bytes::complete::take_while1, character::complete::space0, combinator::map, sequence::separated_pair};
+use nom::{
+    branch::alt, bytes::complete::take_while1, character::complete::space0, combinator::map,
+    sequence::separated_pair, IResult,
+};
 
 use crate::{amount::Amount, errors::ParseError};
 
@@ -149,8 +152,14 @@ mod tests {
     fn test_number_only() {
         assert_eq!(number_only('.')("123"), Ok(("", 123.0)));
         assert_eq!(number_only('.')("456.789"), Ok(("", 456.789)));
-        assert_eq!(number_only(',')("111.222.333,444"), Ok(("", 111_222_333.444)));
-        assert_eq!(number_only('.')("111,222,333.444"), Ok(("", 111_222_333.444)));
+        assert_eq!(
+            number_only(',')("111.222.333,444"),
+            Ok(("", 111_222_333.444))
+        );
+        assert_eq!(
+            number_only('.')("111,222,333.444"),
+            Ok(("", 111_222_333.444))
+        );
         assert_eq!(number_only('.')("123BTC"), Ok(("BTC", 123.0)));
         assert_eq!(number_only('.')("123 BTC"), Ok((" BTC", 123.0)));
         assert!(number_only('.')(" 123").is_err());
@@ -186,11 +195,7 @@ mod tests {
         test("%20.", '.', ("", amount("%", 20.0)));
         test("$100.000,4", ',', ("", amount("$", 100_000.4)));
         test("$,6", ',', ("", amount("$", 0.6)));
-        test(
-            "$1_000_000.5",
-            '.',
-            ("", amount("$", 1_000_000.5)),
-        );
+        test("$1_000_000.5", '.', ("", amount("$", 1_000_000.5)));
         test(
             "$1_000_000,123_456",
             ',',
@@ -200,33 +205,14 @@ mod tests {
         test(
             "$123 ; a wild comment appeared!",
             '.',
-            (
-                " ; a wild comment appeared!",
-                amount("$", 123.0),
-            ),
+            (" ; a wild comment appeared!", amount("$", 123.0)),
         );
-        test(
-            "127h//yoink",
-            '.',
-            ("//yoink", amount("h", 127.0)),
-        );
+        test("127h//yoink", '.', ("//yoink", amount("h", 127.0)));
 
         test("$100 ex", '.', (" ex", amount("$", 100.0)));
-        test(
-            "BTC100.oops",
-            '.',
-            ("oops", amount("BTC", 100.0)),
-        );
-        test(
-            "500 ETH weiner",
-            '.',
-            (" weiner", amount("ETH", 500.0)),
-        );
-        test(
-            "456.7 DOGE boye",
-            '.',
-            (" boye", amount("DOGE", 456.7)),
-        );
+        test("BTC100.oops", '.', ("oops", amount("BTC", 100.0)));
+        test("500 ETH weiner", '.', (" weiner", amount("ETH", 500.0)));
+        test("456.7 DOGE boye", '.', (" boye", amount("DOGE", 456.7)));
         test(
             "891,1 commas extra",
             ',',
@@ -235,10 +221,6 @@ mod tests {
 
         // testing leading spaces
         test(" 600spaces", '.', ("", amount("spaces", 600.0)));
-        test(
-            "\t2_000.watts",
-            '.',
-            ("", amount("watts", 2000.0)),
-        );
+        test("\t2_000.watts", '.', ("", amount("watts", 2000.0)));
     }
 }

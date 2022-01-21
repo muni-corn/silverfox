@@ -266,48 +266,53 @@ impl Frequency {
 
                 Some(next)
             }
-            Self::Biweekly => if let Some(start) = starting_date {
-                // ATTENTION: `w` is not needed here because `starting_date` is required to be on
-                // the same weekday as `w` itself
+            Self::Biweekly => {
+                if let Some(start) = starting_date {
+                    // ATTENTION: `w` is not needed here because `starting_date` is required to be on
+                    // the same weekday as `w` itself
 
-                // if starting date is after today, use that
-                let duration_passed = today.signed_duration_since(start);
-                let periods_passed = duration_passed.num_weeks() / 2;
-                let next = start + chrono::Duration::weeks((periods_passed + 1) * 2);
-                Some(next)
-            } else {
-                // TODO: Decide if we should return an Err instead?
-                None
+                    // if starting date is after today, use that
+                    let duration_passed = today.signed_duration_since(start);
+                    let periods_passed = duration_passed.num_weeks() / 2;
+                    let next = start + chrono::Duration::weeks((periods_passed + 1) * 2);
+                    Some(next)
+                } else {
+                    // TODO: Decide if we should return an Err instead?
+                    None
+                }
             }
             Self::Monthly(day_of_month) => {
                 Some(Self::next_date_by_day_of_month(today, *day_of_month))
             }
-            Self::Bimonthly => if let Some(start) = starting_date {
-                if start > today {
-                    Some(start)
-                } else {
-                    // brute force method until we find something better to do...
-                    let day_of_month = start.day();
-                    let mut date = start;
-                    while date < today {
-                        let month0_plus_two = date.month0() + 2;
-                        let new_year = date.year() + month0_plus_two as i32 / 12;
-                        let new_month = (month0_plus_two % 12) + 1; // + 1 so it's one-based
+            Self::Bimonthly => {
+                if let Some(start) = starting_date {
+                    if start > today {
+                        Some(start)
+                    } else {
+                        // brute force method until we find something better to do...
+                        let day_of_month = start.day();
+                        let mut date = start;
+                        while date < today {
+                            let month0_plus_two = date.month0() + 2;
+                            let new_year = date.year() + month0_plus_two as i32 / 12;
+                            let new_month = (month0_plus_two % 12) + 1; // + 1 so it's one-based
 
-                        // basically create a new date with the month, year and day
-                        date = match NaiveDate::from_ymd_opt(new_year, new_month, day_of_month) {
-                            Some(x) => x,
-                            None => Self::get_last_date_of_month(NaiveDate::from_ymd(
-                                new_year, new_month, 1,
-                            )),
-                        };
+                            // basically create a new date with the month, year and day
+                            date = match NaiveDate::from_ymd_opt(new_year, new_month, day_of_month)
+                            {
+                                Some(x) => x,
+                                None => Self::get_last_date_of_month(NaiveDate::from_ymd(
+                                    new_year, new_month, 1,
+                                )),
+                            };
+                        }
+
+                        Some(date)
                     }
-
-                    Some(date)
+                } else {
+                    // TODO: Decide if we should return an Err instead?
+                    None
                 }
-            } else {
-                // TODO: Decide if we should return an Err instead?
-                None
             }
             Self::Annually(starting_date) => {
                 if starting_date > &today {

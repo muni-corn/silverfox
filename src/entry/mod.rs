@@ -84,7 +84,8 @@ impl Entry {
         decimal_symbol: char,
         account_names: &HashSet<&String>,
     ) -> Result<Self, SilverfoxError> {
-        let (_, entry) = crate::parsing::entry::parse_entry(date_format, decimal_symbol)(chunk).finish()?;
+        let (_, entry) =
+            crate::parsing::entry::parse_entry(date_format, decimal_symbol)(chunk).finish()?;
         entry.build(account_names)
     }
 
