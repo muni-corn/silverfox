@@ -180,7 +180,7 @@ impl Ledger {
             }
         }
         self.entries.push(entry);
-        self.entries.sort_by(|a, b| a.get_date().cmp(&b.get_date()));
+        self.entries.sort_by(|a, b| a.get_date().cmp(b.get_date()));
         Ok(())
     }
 

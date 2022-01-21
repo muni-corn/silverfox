@@ -407,7 +407,7 @@ impl Envelope {
             });
         }
 
-        let envelope_type = match EnvelopeType::from_str(&tokens[0]) {
+        let envelope_type = match EnvelopeType::from_str(tokens[0]) {
             Ok(t) => t,
             Err(e) => return Err(e),
         };
@@ -647,7 +647,7 @@ impl Envelope {
 
                     let amount = envelope_posting.get_amount();
 
-                    self.apply_amount(&amount, *entry.get_date());
+                    self.apply_amount(amount, *entry.get_date());
                 }
             }
         }

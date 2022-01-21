@@ -133,7 +133,7 @@ impl Entry {
                 continue;
             }
 
-            match Posting::parse(raw_posting, decimal_symbol, &accounts) {
+            match Posting::parse(raw_posting, decimal_symbol, accounts) {
                 Ok(p) => {
                     // push the posting
                     entry.postings.push(p);
