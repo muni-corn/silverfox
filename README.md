@@ -114,7 +114,7 @@ More specifically:
 brackets as above, can be queried by silverfox.
 
 > Note: While silverfox has formatting extremely similar to
-> hledger or ledger-cli, an silverfox file is not necessarily
+> hledger or ledger-cli, a silverfox file is not necessarily
 > compatible with an hledger or ledger-cli file. You'll
 > notice that (for example) an equal sign (=) in a posting
 > (an account-amount line in a transaction entry) has two
@@ -309,12 +309,9 @@ envelope <envelope_name> <account> <amount>
 
 ## Fun facts
 
-(this was originally going to work alongside hledger but then
-I decided to make a full-blown accounting program because I
-decided I didn't like Haskell and I wanted to learn Rust)
+This was my first project in Rust. This is the project that got me addicted to Rust.
 
-So, this project features my first attempts at Rust. I'm
-learning as I go. Good experience so far :)
+Now I write everything in Rust. I love it.
 
 ## Donate
 
