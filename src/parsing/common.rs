@@ -42,6 +42,10 @@ pub fn date<'a>(format: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, Naiv
     }
 }
 
+pub fn account_name<'a>(input: &'a str) -> IResult<&'a str, &'a str, ParseError> {
+    is_not(" \t\n\r")(input)
+}
+
 mod tests {
     use super::*;
 

@@ -10,7 +10,7 @@ use nom::{
     IResult,
 };
 
-use super::parse_amount;
+use super::{amount, account_name};
 
 use crate::{
     amount::Amount,
@@ -62,7 +62,7 @@ fn parse_envelope_posting_information(
                 message: Some("probably missing an envelope name".to_string()),
             })
         })?;
-    let (input, account_name) = preceded(space1, is_not(" \t\n\r"))(input)
+    let (input, account_name) = preceded(space1, account_name)(input)
         .map(|(rem, s)| (rem, String::from(s)))
         .map_err(|e: nom::Err<(&str, ErrorKind)>| e.map(|_|
             ParseError {
