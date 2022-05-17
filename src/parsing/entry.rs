@@ -65,16 +65,6 @@ pub fn parse_entry<'a>(
     }
 }
 
-fn parse_date<'a>(
-    date_format: &'a str,
-) -> impl FnMut(&'a str) -> IResult<&'a str, NaiveDate, ParseError> {
-    move |input| {
-        map_res(preceded(space0, is_not("?~*\r\n")), |s: &str| {
-            NaiveDate::parse_from_str(s.trim(), date_format.trim())
-        })(input)
-    }
-}
-
 fn parse_status(input: &str) -> IResult<&str, EntryStatus, ParseError> {
     map_res(preceded(space0, one_of("?~*")), EntryStatus::from_char)(input)
 }

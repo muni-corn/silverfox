@@ -1,13 +1,13 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag},
+    bytes::complete::{is_not, tag, take_till1},
     character::complete::space0,
-    combinator::map,
+    combinator::{map, map_res},
     sequence::pair,
     sequence::preceded,
     IResult,
 };
-
+use chrono::NaiveDate;
 use crate::errors::ParseError;
 
 pub fn eol_comment(line: &str) -> IResult<&str, &str, ParseError> {
@@ -31,13 +31,14 @@ pub fn is_amount_symbol_char(c: char) -> bool {
 
 /// Parses and returns a date provided a custom format
 pub fn date<'a>(format: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, NaiveDate, ParseError> {
-    move |input| {
+    move |input: &str| {
         if format.chars().any(|c| c.is_whitespace()) {
             Err(nom::Err::Failure(ParseError {
                 context: Some(format.to_string()),
                 message: Some(String::from("your date format cannot contain spaces")),
             }))
         } else {
+            map_res(take_till1(char::is_whitespace), |s| NaiveDate::parse_from_str(s, format))(input)
         }
     }
 }
