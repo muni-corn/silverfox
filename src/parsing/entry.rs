@@ -82,6 +82,8 @@ fn parse_payee(input: &str) -> IResult<&str, Option<&str>, ParseError> {
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
+
     use crate::amount::Amount;
     use crate::posting::ClassicPosting;
     use crate::posting::EnvelopePosting;
