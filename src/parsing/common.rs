@@ -51,6 +51,15 @@ pub fn account_name<'a>(input: &'a str) -> IResult<&'a str, &'a str, ParseError>
     is_not(" \t\n\r")(input)
 }
 
+pub fn weekday(input: &str) -> IResult<&str, chrono::Weekday, ParseError> {
+    map_res(take_while1(char::is_alphabetic), |s| {
+        chrono::Weekday::from_str(s).map_err(|_| ParseError {
+            context: None,
+            message: Some(format!("not a valid weekday: {s}")),
+        })
+    })(input)
+}
+
 mod tests {
     use super::*;
 
