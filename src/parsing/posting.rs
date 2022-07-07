@@ -56,16 +56,16 @@ fn parse_envelope_posting_information(
 ) -> IResult<&str, EnvelopePosting, ParseError> {
     let (input, envelope_name) = preceded(space1, is_not(" \t\n\r"))(input)
         .map(|(rem, s)| (rem, String::from(s)))
-        .map_err(|e: nom::Err<(&str, ErrorKind)>| {
-            e.map(|_| ParseError {
+        .map_err(|_: nom::Err<ParseError>| {
+            nom::Err::Error(ParseError {
                 context: Some(String::from(input)),
                 message: Some("probably missing an envelope name".to_string()),
             })
         })?;
     let (input, account_name) = preceded(space1, account_name)(input)
         .map(|(rem, s)| (rem, String::from(s)))
-        .map_err(|e: nom::Err<(&str, ErrorKind)>| e.map(|_|
-            ParseError {
+        .map_err(|_|
+            nom::Err::Error(ParseError {
                 context: Some(String::from(input)),
                 message: Some("probably missing an account name. silverfox currently doesn't support implicit accounts in manual envelope postings".to_string()),
             })
