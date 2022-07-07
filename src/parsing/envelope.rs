@@ -121,8 +121,8 @@ fn funding_method(input: &str) -> IResult<&str, EnvelopeAttr, ParseError> {
     map_res(
         preceded(tuple((space0, tag("funding"), space1)), alpha1),
         |method| match method {
-            "fast" => Ok(EnvelopeAttr::FundingMethod(FundingMethod::Aggressive)),
-            "slow" => Ok(EnvelopeAttr::FundingMethod(FundingMethod::Conservative)),
+            "fast" => Ok(EnvelopeAttr::FundingMethod(FundingMethod::Fast)),
+            "slow" => Ok(EnvelopeAttr::FundingMethod(FundingMethod::Slow)),
             _ => Err(SilverfoxError::Parse(ParseError {
                 context: Some(input.to_string()),
                 message: Some(format!(

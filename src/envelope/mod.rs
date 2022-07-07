@@ -88,16 +88,16 @@ impl FromStr for EnvelopeType {
 #[derive(Debug)]
 pub enum FundingMethod {
     Manual,
-    Conservative,
-    Aggressive,
+    Slow,
+    Fast,
 }
 
 impl FundingMethod {
     fn from_str(raw: &str) -> Result<Self, ParseError> {
         match raw.trim() {
             "manual" => Ok(FundingMethod::Manual),
-            "aggressive" => Ok(FundingMethod::Aggressive),
-            "conservative" => Ok(FundingMethod::Conservative),
+            "aggressive" => Ok(FundingMethod::Fast),
+            "conservative" => Ok(FundingMethod::Slow),
             _ => Err(ParseError {
                 context: Some(raw.to_string()),
                 message: Some("this funding method doesn't exist".to_string()),
@@ -841,7 +841,7 @@ amount")
                     // no automatic movement
                     zero_amount
                 }
-                FundingMethod::Aggressive => {
+                FundingMethod::Fast => {
                     let mag = self
                         .amount
                         .mag
@@ -855,7 +855,7 @@ amount")
                         symbol: symbol.clone(),
                     }
                 }
-                FundingMethod::Conservative => {
+                FundingMethod::Slow => {
                     // get days remaining, and remaining amount
                     let date_diff = next_due_date.signed_duration_since(today);
                     let days_remaining = date_diff.num_days();
