@@ -157,6 +157,7 @@ fn parse_balance_assertion(
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
