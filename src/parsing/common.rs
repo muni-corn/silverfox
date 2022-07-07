@@ -47,7 +47,7 @@ pub fn date(format: &str) -> impl FnMut(&str) -> IResult<&str, NaiveDate, ParseE
     }
 }
 
-pub fn account_name<'a>(input: &'a str) -> IResult<&'a str, &'a str, ParseError> {
+pub fn account_name(input: &str) -> IResult<&str, &str, ParseError> {
     is_not(" \t\n\r")(input)
 }
 
