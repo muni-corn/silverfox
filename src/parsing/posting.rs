@@ -10,7 +10,7 @@ use nom::{
     IResult,
 };
 
-use super::{amount, account_name};
+use super::{amount, account_name, parse_amount};
 
 use crate::{
     amount::Amount,

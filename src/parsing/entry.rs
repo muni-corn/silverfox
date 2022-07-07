@@ -1,4 +1,4 @@
-use super::{eol_comment, parse_posting};
+use super::{eol_comment, parse_posting, date};
 use crate::{
     entry::{builder::EntryBuilder, EntryStatus},
     errors::ParseError,
@@ -20,7 +20,7 @@ pub fn parse_entry<'a>(
     move |input| {
         // parse heading
         let (input, (date, status, description, payee)) = tuple((
-            parse_date(date_format),
+            date(date_format),
             parse_status,
             parse_description,
             parse_payee,
