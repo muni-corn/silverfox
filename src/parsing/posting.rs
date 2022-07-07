@@ -10,7 +10,7 @@ use nom::{
     IResult,
 };
 
-use super::{amount, account_name, parse_amount};
+use super::{account_name, amount};
 
 use crate::{
     amount::Amount,
@@ -68,9 +68,9 @@ fn parse_envelope_posting_information(
             ParseError {
                 context: Some(String::from(input)),
                 message: Some("probably missing an account name. silverfox currently doesn't support implicit accounts in manual envelope postings".to_string()),
-            }
-        ))?;
-    let (leftover, amount) = super::amount::parse_amount(decimal_symbol)(input)?;
+            })
+        )?;
+    let (leftover, amount) = super::amount::amount(decimal_symbol)(input)?;
 
     Ok((
         leftover,
@@ -86,7 +86,7 @@ fn parse_normal_posting_information<'a>(
 ) -> IResult<&'a str, ClassicPosting, ParseError> {
     let _orig = input.to_string();
 
-    let (input, amount) = opt(parse_amount(decimal_symbol))(input).map_err(|e| e.map(|e| ParseError {
+    let (input, amount) = opt(amount(decimal_symbol))(input).map_err(|e| e.map(|e| ParseError {
         context: Some(input.to_string()),
         message: Some(format!("an issue occurred when trying to parse an amount here.\nthis probably isn't supposed to happen. here's some extra info on this error: {}", e)),
     }))?;
@@ -123,7 +123,7 @@ fn parse_cost_assertion(
         let by_unit = map(
             preceded(
                 tuple((space0, tag("@"), space1)),
-                parse_amount(decimal_symbol),
+                amount(decimal_symbol),
             ),
             Cost::UnitCost,
         );
@@ -131,7 +131,7 @@ fn parse_cost_assertion(
         let by_total = map(
             preceded(
                 tuple((space0, alt((tag("@@"), tag("=="))), space1)),
-                parse_amount(decimal_symbol),
+                amount(decimal_symbol),
             ),
             Cost::TotalCost,
         );
@@ -152,7 +152,7 @@ fn parse_balance_assertion(
         let tags = (tag("!"), tag("="));
         preceded(
             tuple((space0, alt(tags), space1)),
-            parse_amount(decimal_symbol),
+            amount(decimal_symbol),
         )(input)
     }
 }

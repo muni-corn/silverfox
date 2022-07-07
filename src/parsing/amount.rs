@@ -9,7 +9,7 @@ use crate::{amount::Amount, errors::ParseError};
 
 use super::{is_amount_quantity_char, is_amount_symbol_char};
 
-pub fn parse_amount(decimal_symbol: char) -> impl FnMut(&str) -> IResult<&str, Amount, ParseError> {
+pub fn amount(decimal_symbol: char) -> impl FnMut(&str) -> IResult<&str, Amount, ParseError> {
     move |input| {
         let amount_parser = alt((
             symbol_then_number(decimal_symbol),
@@ -185,7 +185,7 @@ mod tests {
             mag: quant,
         };
         let test = |input, dec, expected| {
-            assert_eq!(parse_amount(dec)(input).unwrap(), expected);
+            assert_eq!(super::amount(dec)(input).unwrap(), expected);
         };
 
         test("$100", '.', ("", amount("$", 100.0)));

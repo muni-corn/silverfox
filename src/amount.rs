@@ -19,7 +19,7 @@ impl Amount {
     pub fn parse(s: &str, decimal_symbol: char) -> Result<Self, ParseError> {
         // see? look, we just throw away the leftovers here. just like how i throw
         // away leftovers every week. because i won't eat them
-        amount::parse_amount(decimal_symbol)(s)
+        amount::amount(decimal_symbol)(s)
             .finish()
             .map(|(_, a)| a)
     }
