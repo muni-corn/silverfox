@@ -81,6 +81,7 @@ fn symbol_only(input: &str) -> IResult<&str, &str> {
     take_while1(is_amount_symbol_char)(input)
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
