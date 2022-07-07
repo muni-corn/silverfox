@@ -51,13 +51,13 @@ pub fn parse_envelope<'a>(
 ) -> impl FnMut(&'a str) -> IResult<&'a str, EnvelopeBuilder, ParseError> {
     move |input| {
         let envelope_type_tag = alt((tag("envelope"), tag("goal"), tag("expense")));
-        let (input, (indent, envelope_type)) = tuple((space1, envelope_type_tag))(input)?;
-        let (input, envelope_name) = preceded(space1, take_till1(char::is_whitespace))(input)?;
+        let (input, (_indent, _envelope_type)) = tuple((space1, envelope_type_tag))(input)?;
+        let (input, _envelope_name) = preceded(space1, take_till1(char::is_whitespace))(input)?;
 
         let indent_separator = tuple((line_ending, tag(indent), space0));
 
         // get the remaining input and a Vec of EnvelopeAttrs
-        let (input, attrs) = {
+        let (_input, _attrs) = {
             let alt_parser = alt((
                 amount_attr(decimal_symbol),
                 due(date_format),

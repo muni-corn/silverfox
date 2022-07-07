@@ -3,7 +3,7 @@ use crate::{
     entry::{builder::EntryBuilder, EntryStatus},
     errors::ParseError,
 };
-use chrono::NaiveDate;
+
 use nom::{
     bytes::complete::is_not,
     character::complete::{char, multispace1, one_of, space0},
