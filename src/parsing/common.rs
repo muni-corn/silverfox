@@ -1,14 +1,16 @@
+use std::str::FromStr;
+
+use crate::errors::ParseError;
+use chrono::NaiveDate;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_till1},
+    bytes::complete::{is_not, tag, take_till1, take_while, take_while1},
     character::complete::space0,
     combinator::{map, map_res},
-    sequence::pair,
     sequence::preceded,
+    sequence::{pair, terminated},
     IResult,
 };
-use chrono::NaiveDate;
-use crate::errors::ParseError;
 
 pub fn eol_comment(line: &str) -> IResult<&str, &str, ParseError> {
     let comment_start = alt((tag("//"), tag(";")));
