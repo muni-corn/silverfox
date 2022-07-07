@@ -32,7 +32,7 @@ pub fn is_amount_symbol_char(c: char) -> bool {
 }
 
 /// Parses and returns a date provided a custom format
-pub fn date<'a>(format: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, NaiveDate, ParseError> {
+pub fn date(format: &str) -> impl FnMut(&str) -> IResult<&str, NaiveDate, ParseError> + '_ {
     move |input: &str| {
         if format.chars().any(|c| c.is_whitespace()) {
             Err(nom::Err::Failure(ParseError {
@@ -40,7 +40,9 @@ pub fn date<'a>(format: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, Naiv
                 message: Some(String::from("your date format cannot contain spaces")),
             }))
         } else {
-            map_res(take_till1(char::is_whitespace), |s| NaiveDate::parse_from_str(s, format))(input)
+            map_res(take_till1(char::is_whitespace), |s| {
+                NaiveDate::parse_from_str(s, format)
+            })(input)
         }
     }
 }
