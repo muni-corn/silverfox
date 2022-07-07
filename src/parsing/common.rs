@@ -67,6 +67,7 @@ pub fn ordinal(input: &str) -> IResult<&str, u32, ParseError> {
     )(input)
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
