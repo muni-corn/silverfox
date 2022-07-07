@@ -60,6 +60,13 @@ pub fn weekday(input: &str) -> IResult<&str, chrono::Weekday, ParseError> {
     })(input)
 }
 
+pub fn ordinal(input: &str) -> IResult<&str, u32, ParseError> {
+    map_res(
+        terminated(take_while1(|s| char::is_digit(s, 10)), take_while(char::is_alphabetic)),
+        |s: &str| s.parse()
+    )(input)
+}
+
 mod tests {
     use super::*;
 
