@@ -6,7 +6,7 @@ use crate::{
     utils,
 };
 use chrono::{prelude::*, Local, NaiveDate};
-use std::{cmp::Ordering, collections::HashSet, fmt, str::FromStr};
+use std::{cmp::Ordering, collections::HashSet, fmt, str::FromStr, convert::Infallible};
 
 pub mod builder;
 
@@ -73,18 +73,14 @@ pub enum EnvelopeType {
     Goal,
 }
 
-impl EnvelopeType {
-    fn from_str(raw: &str) -> Result<Self, ParseError> {
-        match raw {
-            "expense" => Ok(EnvelopeType::Expense),
-            "goal" => Ok(EnvelopeType::Goal),
-            _ => Err(ParseError {
-                context: Some(raw.to_string()),
-                message: Some(
-                    "this envelope type doesn't exist; instead use either `expense` or `goal`"
-                        .to_string(),
-                ),
-            }),
+impl FromStr for EnvelopeType {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "expense" => Ok(Self::Expense),
+            "goal" => Ok(Self::Goal),
+            _ => Ok(Self::Generic),
         }
     }
 }
