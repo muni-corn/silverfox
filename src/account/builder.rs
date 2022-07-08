@@ -1,7 +1,6 @@
 use crate::amount::AmountPool;
 use crate::envelope::builder::EnvelopeBuilder;
-use crate::envelope::EnvelopeType;
-use crate::errors::SilverfoxResult;
+use crate::errors::{SilverfoxError, SilverfoxResult};
 
 use super::Account;
 
@@ -29,23 +28,18 @@ impl AccountBuilder {
     }
 
     pub fn build(self) -> SilverfoxResult<Account> {
-        let (expense_envelopes, goal_envelopes) = {
-            let (mut e, mut g) = (Vec::new(), Vec::new());
+        let envelopes =
+            self.envelope_builders
+                .into_iter()
+                .try_fold(Vec::new(), |mut acc, builder| {
+                    // try to build the envelope and then push it (if successful)
+                    acc.push(builder.build()?);
+                    Ok::<_, SilverfoxError>(acc)
+                })?;
 
-            for builder in self.envelope_builders {
-                let envelope = builder.build()?;
-                match envelope.get_type() {
-                    EnvelopeType::Expense => e.push(envelope),
-                    EnvelopeType::Goal => g.push(envelope),
-                }
-            }
-
-            (e, g)
-        };
         Ok(Account {
             name: self.name,
-            expense_envelopes,
-            goal_envelopes,
+            envelopes,
             real_value: AmountPool::new(),
         })
     }

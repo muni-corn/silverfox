@@ -13,9 +13,7 @@ mod builder;
 pub struct Account {
     name: String,
 
-    // TODO: combine these into one
-    expense_envelopes: Vec<Envelope>,
-    goal_envelopes: Vec<Envelope>,
+    envelopes: Vec<Envelope>,
 
     /// The real, actual value of this account, which ignores envelopes or virtual postings.
     /// TODO: use this for balance statements
@@ -42,13 +40,10 @@ impl Account {
         };
 
         let account_name = Account::parse_header(&header.to_string())?;
-        let expense_envelopes = Vec::new();
-        let goal_envelopes = Vec::new();
 
         let mut account = Account {
             name: account_name,
-            expense_envelopes,
-            goal_envelopes,
+            envelopes: Vec::new(),
             real_value: AmountPool::new(),
         };
 
@@ -118,14 +113,11 @@ impl Account {
     }
 
     pub fn add_envelope(&mut self, envelope: Envelope) -> Result<(), ValidationError> {
-        let envelope_collection = match envelope.get_type() {
-            EnvelopeType::Expense => &mut self.expense_envelopes,
-            EnvelopeType::Goal => &mut self.goal_envelopes,
-        };
-
-        let envelope_exists = envelope_collection
+        let envelope_exists = self
+            .envelopes
             .iter()
             .any(|e| e.get_name() == envelope.get_name());
+
         if envelope_exists {
             Err(ValidationError {
                 message: Some(format!(
@@ -136,7 +128,7 @@ impl Account {
                 context: None,
             })
         } else {
-            (*envelope_collection).push(envelope);
+            self.envelopes.push(envelope);
             Ok(())
         }
     }
@@ -144,11 +136,7 @@ impl Account {
     /// Processes the Entry by looking for any changes to envelope amounts and applying them. Also
     /// adds to the real_value of the Account.
     pub fn process_entry(&mut self, entry: &Entry) -> Result<(), ProcessingError> {
-        for envelope in self
-            .expense_envelopes
-            .iter_mut()
-            .chain(self.goal_envelopes.iter_mut())
-        {
+        for envelope in self.envelopes.iter_mut() {
             envelope.process_entry(entry)?;
         }
 
@@ -174,7 +162,7 @@ impl Account {
 
     pub fn display_envelopes(&self) {
         // if no envelopes to display, quit
-        if self.expense_envelopes.is_empty() && self.goal_envelopes.is_empty() {
+        if self.envelopes.is_empty() {
             return;
         }
 
@@ -192,17 +180,40 @@ impl Account {
         }
 
         // display expenses
-        if !self.expense_envelopes.is_empty() {
+        let expense_envelopes: Vec<&Envelope> = self
+            .envelopes
+            .iter()
+            .filter(|e| matches!(e.get_type(), EnvelopeType::Expense))
+            .collect();
+        if !expense_envelopes.is_empty() {
             println!("  expenses");
-            for envelope in self.expense_envelopes.iter() {
+            for envelope in expense_envelopes.iter() {
                 println!("{}", envelope);
             }
         }
 
         // display goals
-        if !self.goal_envelopes.is_empty() {
+        let goal_envelopes: Vec<&Envelope> = self
+            .envelopes
+            .iter()
+            .filter(|e| matches!(e.get_type(), EnvelopeType::Goal))
+            .collect();
+        if !goal_envelopes.is_empty() {
             println!("  goals");
-            for envelope in self.goal_envelopes.iter() {
+            for envelope in goal_envelopes.iter() {
+                println!("{}", envelope);
+            }
+        }
+
+        // display other envelopes
+        let other_envelopes: Vec<&Envelope> = self
+            .envelopes
+            .iter()
+            .filter(|e| matches!(e.get_type(), EnvelopeType::Generic))
+            .collect();
+        if !other_envelopes.is_empty() {
+            println!("  other envelopes");
+            for envelope in other_envelopes.iter() {
                 println!("{}", envelope);
             }
         }
@@ -210,35 +221,56 @@ impl Account {
         println!(); // do not remove; this is a separator
     }
 
+    /// Sorts envelopes by due date and then returns postings that will fill (or drain) them as
+    /// needed.
     pub fn get_filling_postings(&self) -> Vec<Posting> {
-        let mut postings: Vec<Posting> = Vec::new();
-        let mut available_value = self.get_available_value();
+        // sort envelopes by due date (cloning so we don't have to mutate the Envelope)
+        let mut sorted_envelopes = self.envelopes.clone();
+        sorted_envelopes.sort_by_cached_key(|e| e.get_next_due_date());
 
-        // create an iterator, then reverse it so that envelopes are drained more safely in case
-        // the account's available value is negative. goals will be drained first, starting at the
-        // envelope with the farthest due date
-        let iter = self
-            .expense_envelopes
-            .iter()
-            .chain(self.goal_envelopes.iter());
-        for envelope in iter.rev() {
-            let new_posting = Posting::from(envelope.get_filling_posting(&available_value));
-            if let Some(new_amount) = new_posting.get_amount() {
-                available_value -= new_amount;
-                postings.push(new_posting);
-            }
-        }
+        // generate and apply envelope-filling (or draining) postings from each envelope
+        let (_final_available_value, postings) = self.get_available_value().iter().fold(
+            (self.get_available_value(), Vec::new()),
+            |(mut available_value, mut postings), available_amount| {
+                // create a closure that can be used to create and apply postings for envelopes
+                let apply_envelope_fill_posting = |envelope: &Envelope| {
+                    // create a posting depending on what the envelope or account needs
+                    let new_posting = Posting::from(envelope.get_filling_posting(&available_value));
+
+                    // if the posting has an amount, subtract it (whether positive or negative)
+                    // from the available value/pool that we're keeping track of and add the
+                    // posting to the Vec of postings
+                    if let Some(new_amount) = new_posting.get_amount() {
+                        available_value -= new_amount;
+                        postings.push(new_posting);
+                    }
+                };
+
+                if available_amount.mag < 0. {
+                    // if the available value in this amount's currency is below 0, we'll take money
+                    // from the envelope whose due date is farthest away (by reversing the iterator)
+                    sorted_envelopes
+                        .iter()
+                        .rev()
+                        .for_each(apply_envelope_fill_posting);
+                } else if available_amount.mag > 0. {
+                    // otherwise, if the available value in this amount's currency is above 0,
+                    // we'll fill envelopes in order of their next due dates
+                    sorted_envelopes
+                        .iter()
+                        .for_each(apply_envelope_fill_posting);
+                }
+
+                (available_value, postings)
+            },
+        );
 
         postings
     }
 
     pub fn get_available_value(&self) -> AmountPool {
         let mut amount_pool = self.real_value.clone();
-        for envelope in self
-            .expense_envelopes
-            .iter()
-            .chain(self.goal_envelopes.iter())
-        {
+        for envelope in self.envelopes.iter() {
             amount_pool = amount_pool - envelope.get_next_amount() - envelope.get_now_amount();
         }
 
@@ -279,22 +311,32 @@ mod tests {
         // test envelopes
         {
             // expenses
+            let expense_envelopes: Vec<&Envelope> = account
+                .envelopes
+                .iter()
+                .filter(|e| matches!(e.get_type(), EnvelopeType::Expense))
+                .collect();
             assert_eq!(
-                account.expense_envelopes.len(),
+                expense_envelopes.len(),
                 1,
                 "no expense envelopes; there should be one"
             );
-            let ex_envelope = &account.expense_envelopes[0];
+            let ex_envelope = expense_envelopes.first().unwrap();
             assert_eq!(ex_envelope.get_name(), "groceries");
             assert_eq!(*ex_envelope.get_freq(), Frequency::Monthly(5));
 
             // goals
+            let goal_envelopes: Vec<&Envelope> = account
+                .envelopes
+                .iter()
+                .filter(|e| matches!(e.get_type(), EnvelopeType::Goal))
+                .collect();
             assert_eq!(
-                account.goal_envelopes.len(),
+                goal_envelopes.len(),
                 1,
                 "no goal envelopes; there should be one"
             );
-            let goal_envelope = &account.goal_envelopes[0];
+            let goal_envelope = goal_envelopes.first().unwrap();
             assert_eq!(goal_envelope.get_name(), "yearly_goal");
             assert_eq!(
                 *goal_envelope.get_freq(),

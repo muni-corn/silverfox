@@ -10,7 +10,7 @@ use std::{cmp::Ordering, collections::HashSet, fmt, str::FromStr, convert::Infal
 
 pub mod builder;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Envelope {
     name: String,
     amount: Amount,
@@ -67,7 +67,7 @@ impl PartialEq for Envelope {
 
 impl Eq for Envelope {}
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum EnvelopeType {
     Generic,
     Expense,
@@ -86,7 +86,7 @@ impl FromStr for EnvelopeType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum FundingMethod {
     Manual,
     Slow,
@@ -108,7 +108,7 @@ impl FundingMethod {
 }
 
 // tuples including a date is the "starting" date
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Frequency {
     Never,
     Once(NaiveDate),
@@ -414,10 +414,7 @@ impl Envelope {
             });
         }
 
-        let envelope_type = match EnvelopeType::from_str(tokens[0]) {
-            Ok(t) => t,
-            Err(e) => return Err(e),
-        };
+        let envelope_type = EnvelopeType::from_str(tokens[0]).unwrap();
 
         // parse `starting` clause
         let (starting_date, starting_idx) = match Self::extract_starting(header, date_format) {
@@ -876,8 +873,7 @@ amount")
         }
     }
 
-    /// Returns a posting with this Envelope's fill amount for the day. `account` is passed so that
-    /// the program can determine how much money we have available.
+    /// Returns a posting with this Envelope's fill (or drain) amount for the day.
     pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> EnvelopePosting {
         let amount = self.get_filling_amount(&account_available_value.only(&self.amount.symbol));
 
@@ -896,7 +892,7 @@ amount")
         &self.now_amount
     }
 
-    fn get_next_due_date(&self) -> Option<NaiveDate> {
+    pub fn get_next_due_date(&self) -> Option<NaiveDate> {
         let starting_date = if let Some(d) = self.starting_date {
             d
         } else {
