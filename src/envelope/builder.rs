@@ -73,7 +73,7 @@ impl EnvelopeBuilder {
             starting_date: self.starting_date,
             next_amount: Amount::zero(),
             now_amount: Amount::zero(),
-            parent_account: self.parent_account,
+            parent_account_name: self.parent_account,
             last_transaction_date: NaiveDate::from_ymd(1, 1, 1),
         })
     }

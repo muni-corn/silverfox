@@ -26,8 +26,8 @@ pub struct Envelope {
     /// The amount saved up now.
     now_amount: Amount,
 
-    /// The account this Envelope pertains to
-    parent_account: String,
+    /// The account name this Envelope pertains to
+    parent_account_name: String,
 
     /// The last date at which this envelope was affected
     last_transaction_date: NaiveDate,
@@ -446,7 +446,7 @@ impl Envelope {
             auto_accounts: HashSet::new(),
             next_amount: Amount::zero(),
             now_amount: Amount::zero(),
-            parent_account: String::from(account_name),
+            parent_account_name: String::from(account_name),
             starting_date,
             last_transaction_date: NaiveDate::from_ymd(0, 1, 1),
         };
@@ -646,7 +646,7 @@ impl Envelope {
 
             if let Posting::Envelope(envelope_posting) = posting {
                 // this posting can only apply if the accounts match
-                if envelope_posting.get_account_name() == &self.parent_account
+                if envelope_posting.get_account_name() == &self.parent_account_name
                     && &self.name == envelope_posting.get_envelope_name()
                 {
                     // now, everything depends on the amount and date
@@ -672,7 +672,7 @@ impl Envelope {
 
         // count
         for posting in entry.get_postings() {
-            if *posting.get_account() == self.parent_account {
+            if *posting.get_account() == self.parent_account_name {
                 self_account_count += 1;
             } else if self.auto_accounts.contains(posting.get_account()) {
                 auto_account_count += 1;
@@ -723,7 +723,7 @@ impl Envelope {
 currency. furthermore, this entry contains postings with accounts that relate to
 the envelope, but silverfox could not move money automatically because the
 postings use currencies that cannot be converted to the currency of the
-envelope. hopefully that all makes sense!", self.name, self.parent_account);
+envelope. hopefully that all makes sense!", self.name, self.parent_account_name);
 
                     return Err(ProcessingError {
                         message: Some(message),
@@ -747,7 +747,7 @@ amount")
                 }
             }
 
-            if posting.get_account() == &self.parent_account {
+            if posting.get_account() == &self.parent_account_name {
                 self_account_postings_sum += amount_to_add;
             } else if self.auto_accounts.contains(posting.get_account()) {
                 auto_postings_sum += amount_to_add;
@@ -880,7 +880,7 @@ amount")
     pub fn get_filling_posting(&self, account_available_value: &AmountPool) -> EnvelopePosting {
         let amount = self.get_filling_amount(&account_available_value.only(&self.amount.symbol));
 
-        EnvelopePosting::new(&self.parent_account, amount, &self.name)
+        EnvelopePosting::new(&self.parent_account_name, amount, &self.name)
     }
 
     fn get_remaining_next_amount(&self) -> Amount {
