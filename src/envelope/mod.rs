@@ -69,6 +69,7 @@ impl Eq for Envelope {}
 
 #[derive(Debug)]
 pub enum EnvelopeType {
+    Generic,
     Expense,
     Goal,
 }
