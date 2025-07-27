@@ -289,7 +289,7 @@ mod tests {
             assert_eq!(goal_envelope.get_name(), "yearly_goal");
             assert_eq!(
                 *goal_envelope.get_freq(),
-                Frequency::Annually(chrono::NaiveDate::from_ymd(2020, 2, 20))
+                Frequency::Annually(chrono::NaiveDate::from_ymd_opt(2020, 2, 20).unwrap())
             );
         }
     }

@@ -286,7 +286,7 @@ impl Ledger {
         }
 
         let entry = Entry::new(
-            Local::today().naive_utc(),
+            Local::now().date_naive(),
             crate::entry::EntryStatus::Cleared,
             String::from("move to envelopes"),
             None,

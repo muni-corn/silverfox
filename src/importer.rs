@@ -624,7 +624,7 @@ test5
                 None,
             ));
             entry0 = Entry::new(
-                chrono::NaiveDate::from_ymd(2020, 10, 9),
+                chrono::NaiveDate::from_ymd_opt(2020, 10, 9).unwrap(),
                 EntryStatus::Cleared,
                 String::from("Test CSV Entry One"),
                 None,
@@ -658,7 +658,7 @@ test5
                 None,
             ));
             entry1 = Entry::new(
-                chrono::NaiveDate::from_ymd(2020, 11, 12),
+                chrono::NaiveDate::from_ymd_opt(2020, 11, 12).unwrap(),
                 EntryStatus::Cleared,
                 String::from("Test CSV Entry Two"),
                 None,
@@ -692,7 +692,7 @@ test5
                 None,
             ));
             entry2 = Entry::new(
-                chrono::NaiveDate::from_ymd(2020, 12, 13),
+                chrono::NaiveDate::from_ymd_opt(2020, 12, 13).unwrap(),
                 EntryStatus::Cleared,
                 String::from("Test CSV Entry Three"),
                 Some(String::from("Ferris the Crab")),
@@ -726,7 +726,7 @@ test5
                 None,
             ));
             entry3 = Entry::new(
-                chrono::NaiveDate::from_ymd(2020, 1, 2),
+                chrono::NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
                 EntryStatus::Cleared,
                 String::from("Test CSV Entry Four"),
                 Some(String::from("Ferris the Crab")),
@@ -760,7 +760,7 @@ test5
                 None,
             ));
             entry4 = Entry::new(
-                chrono::NaiveDate::from_ymd(2020, 2, 14),
+                chrono::NaiveDate::from_ymd_opt(2020, 2, 14).unwrap(),
                 EntryStatus::Cleared,
                 String::from("Test CSV Entry Five"),
                 None,

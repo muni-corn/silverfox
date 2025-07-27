@@ -563,7 +563,7 @@ mod tests {
             Ok(e) => {
                 assert_eq!(
                     e.date,
-                    chrono::NaiveDate::from_ymd(2019, 8, 2),
+                    chrono::NaiveDate::from_ymd_opt(2019, 8, 2).unwrap(),
                     "date was not parsed correctly"
                 );
                 assert_eq!(

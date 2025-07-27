@@ -236,13 +236,13 @@ impl Frequency {
             new_year -= 1;
         }
 
-        NaiveDate::from_ymd(new_year, new_month0 as u32 + 1, date.day())
+        NaiveDate::from_ymd_opt(new_year, new_month0 as u32 + 1, date.day()).unwrap()
     }
 
     // this function is pretty long, so we should probably break it into smaller functions
     /// Calculates and returns the next due date based on this Frequency.
     pub fn get_next_due_date(&self) -> Option<NaiveDate> {
-        let today = Local::today().naive_local();
+        let today = Local::now().date_naive();
         match self {
             Self::Never => None,
             Self::Once(date) => {
@@ -315,8 +315,9 @@ impl Frequency {
     /// Returns the last day of the date's month
     fn get_last_date_of_month(date: NaiveDate) -> NaiveDate {
         NaiveDate::from_ymd_opt(date.year(), date.month() + 1, 1)
-            .unwrap_or_else(|| NaiveDate::from_ymd(date.year() + 1, 1, 1))
-            .pred()
+            .unwrap_or_else(|| NaiveDate::from_ymd_opt(date.year() + 1, 1, 1).unwrap())
+            .pred_opt()
+            .unwrap()
     }
 
     fn next_date_by_day_of_month(today: NaiveDate, day: u32) -> NaiveDate {
@@ -338,8 +339,11 @@ impl Frequency {
             // lead to this month's last date. to get the last date of next month, we
             // have to add 2 to today.month()
             let last_date_next_month = NaiveDate::from_ymd_opt(today.year(), today.month() + 2, 1)
-                .unwrap_or_else(|| NaiveDate::from_ymd(today.year() + 1, next_month_ordinal, 1))
-                .pred();
+                .unwrap_or_else(|| {
+                    NaiveDate::from_ymd_opt(today.year() + 1, next_month_ordinal, 1).unwrap()
+                })
+                .pred_opt()
+                .unwrap();
 
             // return the date with the year and month of `last_date_next_month`, and try with the
             // day provided. if the date with `day` doesn't work, use `last_date_next_month`
@@ -434,7 +438,7 @@ impl Envelope {
             now_amount: Amount::zero(),
             account: String::from(account_name),
             starting_date,
-            last_transaction_date: NaiveDate::from_ymd(0, 1, 1),
+            last_transaction_date: NaiveDate::from_ymd_opt(0, 1, 1).unwrap(),
         };
         Ok(envelope)
     }
@@ -790,7 +794,7 @@ envelope. hopefully that all makes sense!", self.name, self.account);
             return zero_amount;
         };
 
-        let today = Local::today().naive_utc();
+        let today = Local::now().date_naive();
         let remaining_amount = self.get_remaining_next_amount();
 
         if self.last_transaction_date == today {
@@ -913,12 +917,12 @@ mod tests {
 
     #[test]
     fn subtract_months_test() {
-        let date_0 = NaiveDate::from_ymd(2019, 8, 2);
+        let date_0 = NaiveDate::from_ymd_opt(2019, 8, 2).unwrap();
         let subtracted_0 = Frequency::subtract_months(date_0, 3);
-        assert_eq!(NaiveDate::from_ymd(2019, 5, 2), subtracted_0);
+        assert_eq!(NaiveDate::from_ymd_opt(2019, 5, 2).unwrap(), subtracted_0);
 
-        let date_1 = NaiveDate::from_ymd(2020, 1, 1);
+        let date_1 = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
         let subtracted_1 = Frequency::subtract_months(date_1, 3);
-        assert_eq!(NaiveDate::from_ymd(2019, 10, 1), subtracted_1);
+        assert_eq!(NaiveDate::from_ymd_opt(2019, 10, 1).unwrap(), subtracted_1);
     }
 }
