@@ -52,7 +52,14 @@
             # packages = self'.packages.silverfox;
             devShells.default = self'.devShells.rust;
 
-            rust-project.toolchain = inputs.fenix.packages.${system}.default.toolchain;
+            rust-project.toolchain = inputs.fenix.packages.${system}.complete.withComponents [
+              "cargo"
+              "clippy"
+              "rust-src"
+              "rust-std"
+              "rustc"
+              "rustfmt"
+            ];
             treefmt.programs.rustfmt.enable = true;
           };
       }
