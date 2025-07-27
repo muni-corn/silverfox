@@ -3,21 +3,58 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    rust-flake = {
+      url = "github:juspay/rust-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
-        let
-          overlays = [ (import rust-overlay) ];
-          pkgs = import nixpkgs {
-            inherit system overlays;
+  outputs =
+    inputs@{
+      flake-parts,
+      ...
+    }:
+    flake-parts.lib.mkFlake { inherit inputs; } (
+      { ... }:
+      {
+        imports = [
+          inputs.rust-flake.flakeModules.default
+          inputs.rust-flake.flakeModules.nixpkgs
+          inputs.treefmt-nix.flakeModule
+        ];
+
+        systems = [
+          "x86_64-linux"
+          "x86_64-darwin"
+          "aarch64-linux"
+          "aarch64-darwin"
+        ];
+
+        flake = { };
+
+        perSystem =
+          {
+            self',
+            system,
+            ...
+          }:
+          {
+            # packages = self'.packages.silverfox;
+            devShells.default = self'.devShells.rust;
+
+            rust-project.toolchain = inputs.fenix.packages.${system}.default.toolchain;
+            treefmt.programs.rustfmt.enable = true;
           };
-        in
-        {
-          devShell = import ./shell.nix { inherit pkgs; };
-        }
-      );
+      }
+    );
 }
