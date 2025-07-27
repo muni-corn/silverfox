@@ -216,7 +216,10 @@ impl fmt::Display for ProcessingError {
                 "your journal is valid, but silverfox couldn't process this:\n\n{b}\n\nno further information was provided"
             )
         } else {
-            write!(f, "your journal is valid, but silverfox couldn't process something. no information was provided. file an issue?")
+            write!(
+                f,
+                "your journal is valid, but silverfox couldn't process something. no information was provided. file an issue?"
+            )
         }
     }
 }

@@ -58,7 +58,7 @@ impl CsvImporter {
                     return Err(SilverfoxError::from(ParseError {
                         message: Some(format!("there was an error reading csv records: {e}")),
                         context: None,
-                    }))
+                    }));
                 }
             }
         }
@@ -253,7 +253,7 @@ impl Rules {
                             "`fields` cannot be discarded; a value is required",
                         )),
                         context: None,
-                    }))
+                    }));
                 }
                 "if" => {
                     // because root-level subrules should be handled by add_from_str, this should not
@@ -328,7 +328,7 @@ impl Rules {
                                     "the `skip` rule couldn't be parsed because of this error: {e}"
                                 )),
                                 context: None,
-                            }))
+                            }));
                         }
                     }
                 }
@@ -408,7 +408,7 @@ impl Rules {
                         raw_date, self.date_format, e
                     )),
                     context: None,
-                }))
+                }));
             }
         };
 
@@ -617,12 +617,7 @@ test5
                 Some(Cost::UnitCost(price0)),
                 None,
             ));
-            let posting0_1 = Posting::from(ClassicPosting::new(
-                "income:unknown",
-                None,
-                None,
-                None,
-            ));
+            let posting0_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None));
             entry0 = Entry::new(
                 chrono::NaiveDate::from_ymd_opt(2020, 10, 9).unwrap(),
                 EntryStatus::Cleared,
@@ -651,12 +646,8 @@ test5
                 Some(Cost::UnitCost(price1)),
                 None,
             ));
-            let posting1_1 = Posting::from(ClassicPosting::new(
-                "expenses:unknown",
-                None,
-                None,
-                None,
-            ));
+            let posting1_1 =
+                Posting::from(ClassicPosting::new("expenses:unknown", None, None, None));
             entry1 = Entry::new(
                 chrono::NaiveDate::from_ymd_opt(2020, 11, 12).unwrap(),
                 EntryStatus::Cleared,
@@ -685,12 +676,7 @@ test5
                 Some(Cost::UnitCost(price2)),
                 None,
             ));
-            let posting2_1 = Posting::from(ClassicPosting::new(
-                "income:unknown",
-                None,
-                None,
-                None,
-            ));
+            let posting2_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None));
             entry2 = Entry::new(
                 chrono::NaiveDate::from_ymd_opt(2020, 12, 13).unwrap(),
                 EntryStatus::Cleared,
@@ -719,12 +705,8 @@ test5
                 Some(Cost::UnitCost(price3)),
                 None,
             ));
-            let posting3_1 = Posting::from(ClassicPosting::new(
-                "expenses:unknown",
-                None,
-                None,
-                None,
-            ));
+            let posting3_1 =
+                Posting::from(ClassicPosting::new("expenses:unknown", None, None, None));
             entry3 = Entry::new(
                 chrono::NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
                 EntryStatus::Cleared,
@@ -753,12 +735,7 @@ test5
                 Some(Cost::UnitCost(price4)),
                 None,
             ));
-            let posting4_1 = Posting::from(ClassicPosting::new(
-                "income:unknown",
-                None,
-                None,
-                None,
-            ));
+            let posting4_1 = Posting::from(ClassicPosting::new("income:unknown", None, None, None));
             entry4 = Entry::new(
                 chrono::NaiveDate::from_ymd_opt(2020, 2, 14).unwrap(),
                 EntryStatus::Cleared,

@@ -501,7 +501,7 @@ impl Envelope {
                                 "the `{key}` property isn't understood by silverfox"
                             )),
                             context: None,
-                        })
+                        });
                     }
                 }
             }

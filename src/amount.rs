@@ -23,7 +23,7 @@ impl Amount {
                 return Err(ParseError {
                     context: Some(s.to_string()),
                     message: Some("this amount isn't valid".to_string()),
-                })
+                });
             }
         };
 
@@ -44,7 +44,7 @@ impl Amount {
                 return Err(ParseError {
                     message: Some(String::from("couldn't parse magnitude of amount")),
                     context: Some(s.to_string()),
-                })
+                });
             }
         };
 
@@ -370,12 +370,12 @@ impl AmountPool {
     /// magnitiude.
     pub fn is_zero(&self) -> bool {
         if self.is_empty() {
-            return true
+            return true;
         }
 
         for amt in &self.pool {
             if amt.mag != 0.0 {
-                return false
+                return false;
             }
         }
 

@@ -103,7 +103,12 @@ impl CommandFlags {
                 }
             }
             // Subcommand::Register => ledger.display_register(self.period, self.begin_date, self.end_date),
-            _ => return Err(SilverfoxError::Basic(format!("the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(", self.subcommand))),
+            _ => {
+                return Err(SilverfoxError::Basic(format!(
+                    "the `{}` subcommand is recognized by silverfox, but not supported yet. sorry :(",
+                    self.subcommand
+                )));
+            }
         }
 
         Ok(())

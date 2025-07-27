@@ -43,7 +43,7 @@ impl FromStr for EntryStatus {
                     "silverfox requires statuses on entries and `{s}` is not a status that silverfox understands"
                 )),
                 context: None,
-            })
+            }),
         }
     }
 }

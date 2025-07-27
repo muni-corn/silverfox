@@ -1,8 +1,6 @@
-use crate::amount::Amount;
-use crate::errors::*;
-use crate::utils;
-use std::collections::HashSet;
-use std::fmt;
+use std::{collections::HashSet, fmt};
+
+use crate::{amount::Amount, errors::*, utils};
 
 #[derive(Clone, Debug)]
 pub struct ClassicPosting {
@@ -53,7 +51,8 @@ impl EnvelopePosting {
             });
         };
 
-        // hopefully collects the remainder of the tokens, and not all of the beginning ones too
+        // hopefully collects the remainder of the tokens, and not all of the beginning
+        // ones too
         let amount_tokens: String = tokens.collect();
         let amount = Amount::parse(&amount_tokens, decimal_symbol)?;
 
@@ -114,7 +113,8 @@ impl Posting {
         decimal_symbol: char,
         accounts: &HashSet<&String>,
     ) -> Result<Self, SilverfoxError> {
-        // match first token, to decide on parsing an envelope posting or a classic posting
+        // match first token, to decide on parsing an envelope posting or a classic
+        // posting
         line = utils::remove_comments(line).trim();
         if let Some(t) = line.split_whitespace().next() {
             if t == "envelope" {
@@ -134,7 +134,7 @@ impl Posting {
             Err(SilverfoxError::from(ParseError {
                 message: Some("nothing to parse for a Posting".to_string()),
                 context: None,
-            })),
+            }))
         }
     }
 
@@ -171,7 +171,8 @@ impl Posting {
     //     }
     // }
 
-    /// Returns a String that can be written in a file and parsed later on, giving the same result
+    /// Returns a String that can be written in a file and parsed later on,
+    /// giving the same result
     pub fn as_parsable(&self) -> String {
         format!("{self}")
     }
@@ -342,9 +343,9 @@ impl ClassicPosting {
     }
 
     pub fn get_original_native_value(&self) -> Option<f64> {
-        // calculate native price of this posting. posting.amount must exist for this to work
-        // (since this is literally used primarily for calculating the value of blank posting
-        // amounts, boi)
+        // calculate native price of this posting. posting.amount must exist for this to
+        // work (since this is literally used primarily for calculating the
+        // value of blank posting amounts, boi)
         if let Some(a) = &self.amount {
             if a.symbol.is_none() {
                 // if the posting's amount is native, then of course that's the native amount
