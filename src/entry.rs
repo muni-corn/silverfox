@@ -18,7 +18,7 @@ pub enum EntryStatus {
 
 impl EntryStatus {
     pub fn from_char(c: char) -> Result<Self, ParseError> {
-        Self::from_str(&format!("{}", c))
+        Self::from_str(&format!("{c}"))
     }
 
     pub fn to_char(&self) -> char {
@@ -39,7 +39,9 @@ impl FromStr for EntryStatus {
             "~" => Ok(EntryStatus::Cleared),
             "*" => Ok(EntryStatus::Reconciled),
             _ => Err(ParseError {
-                message: Some(format!("silverfox requires statuses on entries and `{}` is not a status that silverfox understands", s)),
+                message: Some(format!(
+                    "silverfox requires statuses on entries and `{s}` is not a status that silverfox understands"
+                )),
                 context: None,
             })
         }
@@ -83,10 +85,10 @@ impl Entry {
         postings: Vec<Posting>,
         mut comment: Option<String>,
     ) -> Self {
-        if let Some(c) = &comment {
-            if c.is_empty() {
-                comment = None
-            }
+        if let Some(c) = &comment
+            && c.is_empty()
+        {
+            comment = None
         }
 
         Self {
@@ -322,7 +324,7 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
             self.date, self.status, self.description, payee
         );
         for posting in &self.postings {
-            s.push_str(&format!("\n\t{}", posting));
+            s.push_str(&format!("\n\t{posting}"));
         }
 
         s
@@ -460,14 +462,14 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 
         let account_flow = (negative_name.clone(), positive_name.clone());
         let short_account_flow = (
-            negative_name.split(':').last().unwrap().to_string(),
-            positive_name.split(':').last().unwrap().to_string(),
+            negative_name.split(':').next_back().unwrap().to_string(),
+            positive_name.split(':').next_back().unwrap().to_string(),
         );
         let single_account_display = {
             if !is_account_name_focused(&positive_name) {
-                positive_name.split(':').last().unwrap()
+                positive_name.split(':').next_back().unwrap()
             } else if !is_account_name_focused(&negative_name) {
-                negative_name.split(':').last().unwrap()
+                negative_name.split(':').next_back().unwrap()
             } else {
                 // both positive and negative accounts are focused, so this is
                 // probably a conversion
@@ -483,8 +485,8 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
             payee: self
                 .payee
                 .as_ref()
-                .map(|p| format!("[{}]", p))
-                .unwrap_or_else(|| "".to_string()),
+                .map(|p| format!("[{p}]"))
+                .unwrap_or_default(),
             account_flow,
             short_account_flow,
             single_account_display,

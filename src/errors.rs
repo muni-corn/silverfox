@@ -86,12 +86,11 @@ impl fmt::Display for ParseError {
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "silverfox ran across an issue in your journal: {}", a)
+            write!(f, "silverfox ran across an issue in your journal: {a}")
         } else if let Some(b) = &self.context {
             write!(
                 f,
-                "silverfox couldn't understand this:\n\n{}\n\nbut no explanation was provided",
-                b
+                "silverfox couldn't understand this:\n\n{b}\n\nbut no explanation was provided"
             )
         } else {
             write!(
@@ -148,9 +147,12 @@ impl fmt::Display for ValidationError {
                 self.message.as_ref().unwrap(),
             )
         } else if let Some(a) = &self.message {
-            write!(f, "silverfox flagged your journal file as invalid: {}", a)
+            write!(f, "silverfox flagged your journal file as invalid: {a}")
         } else if let Some(b) = &self.context {
-            write!(f, "the following is invalid to silverfox:\n\n{}\n\nbut no further information was provided", b)
+            write!(
+                f,
+                "the following is invalid to silverfox:\n\n{b}\n\nbut no further information was provided"
+            )
         } else {
             write!(
                 f,
@@ -206,11 +208,13 @@ impl fmt::Display for ProcessingError {
         } else if let Some(a) = &self.message {
             write!(
                 f,
-                "your journal is valid, but silverfox couldn't process this: {}",
-                a
+                "your journal is valid, but silverfox couldn't process this: {a}"
             )
         } else if let Some(b) = &self.context {
-            write!(f, "your journal is valid, but silverfox couldn't process this:\n\n{}\n\nno further information was provided", b)
+            write!(
+                f,
+                "your journal is valid, but silverfox couldn't process this:\n\n{b}\n\nno further information was provided"
+            )
         } else {
             write!(f, "your journal is valid, but silverfox couldn't process something. no information was provided. file an issue?")
         }

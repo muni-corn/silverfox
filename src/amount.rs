@@ -92,19 +92,22 @@ impl fmt::Display for Amount {
 
         if let Some(sym) = &self.symbol {
             if sym.len() <= 2 {
-                write!(f, "{}{}", sym, mag_fmt)
+                write!(f, "{sym}{mag_fmt}")
             } else {
-                write!(f, "{} {}", mag_fmt, sym)
+                write!(f, "{mag_fmt} {sym}")
             }
         } else {
-            write!(f, "{}", mag_fmt)
+            write!(f, "{mag_fmt}")
         }
     }
 }
 
 impl Ord for Amount {
     fn cmp(&self, other: &Self) -> Ordering {
-        assert_eq!(self.symbol, other.symbol, "tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them.", self, other);
+        assert_eq!(
+            self.symbol, other.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {other}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag
             .partial_cmp(&other.mag)
@@ -114,7 +117,7 @@ impl Ord for Amount {
 
 impl PartialOrd for Amount {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        assert_eq!(self.symbol, other.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, other);
+        assert_eq!(self.symbol, other.symbol,"tried to operate on two amounts with differing symbols: {self} and {other}. developers should check for non-matching Amount symbols before performing operations on them.");
 
         Some(self.cmp(other))
     }
@@ -133,7 +136,10 @@ impl Add for Amount {
     type Output = Self;
 
     fn add(mut self, rhs: Amount) -> Self::Output {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag += rhs.mag;
 
@@ -144,7 +150,10 @@ impl Add for Amount {
 /// += operator
 impl AddAssign for Amount {
     fn add_assign(&mut self, rhs: Amount) {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag += rhs.mag;
     }
@@ -162,7 +171,10 @@ impl Sub for Amount {
 /// -= operator
 impl SubAssign for Amount {
     fn sub_assign(&mut self, rhs: Amount) {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag -= rhs.mag;
     }
@@ -185,7 +197,10 @@ impl Add<&Amount> for Amount {
     type Output = Self;
 
     fn add(mut self, rhs: &Amount) -> Self::Output {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag += rhs.mag;
 
@@ -196,7 +211,10 @@ impl Add<&Amount> for Amount {
 /// += operator
 impl AddAssign<&Amount> for Amount {
     fn add_assign(&mut self, rhs: &Amount) {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag += rhs.mag;
     }
@@ -207,7 +225,10 @@ impl Sub<&Amount> for Amount {
     type Output = Self;
 
     fn sub(mut self, rhs: &Amount) -> Self::Output {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag -= rhs.mag;
 
@@ -218,7 +239,10 @@ impl Sub<&Amount> for Amount {
 /// -= operator
 impl SubAssign<&Amount> for Amount {
     fn sub_assign(&mut self, rhs: &Amount) {
-        assert_eq!(self.symbol, rhs.symbol,"tried to operate on two amounts with differing symbols: {} and {}. developers should check for non-matching Amount symbols before performing operations on them." , self, rhs);
+        assert_eq!(
+            self.symbol, rhs.symbol,
+            "tried to operate on two amounts with differing symbols: {self} and {rhs}. developers should check for non-matching Amount symbols before performing operations on them."
+        );
 
         self.mag -= rhs.mag;
     }
@@ -383,7 +407,7 @@ impl fmt::Display for AmountPool {
             1 => write!(f, "{}", self.pool[0]),
             _ => {
                 for a in self.pool.iter() {
-                    write!(f, "\n\t{}", a)?;
+                    write!(f, "\n\t{a}")?;
                 }
 
                 Ok(())
@@ -394,5 +418,5 @@ impl fmt::Display for AmountPool {
 
 /// Returns true if the char is a digit, decimal symbol, or dash.
 fn is_mag_char(c: char, decimal_symbol: char) -> bool {
-    c.is_digit(10) || c == decimal_symbol || c == '-'
+    c.is_ascii_digit() || c == decimal_symbol || c == '-'
 }

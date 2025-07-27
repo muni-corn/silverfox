@@ -61,12 +61,9 @@ impl CommandFlags {
                             flags.rules_file = Some(PathBuf::from(arg_value));
                         }
                         _ => {
-                            return Err(SilverfoxError::Basic(
-                                format!(
-                                    "silverfox doesn't recognize this flag: `{}`",
-                                    arg
-                                ),
-                            ))
+                            return Err(SilverfoxError::Basic(format!(
+                                "silverfox doesn't recognize this flag: `{arg}`"
+                            )));
                         }
                     }
                 }
@@ -90,9 +87,7 @@ impl CommandFlags {
         let mut ledger = Ledger::from_file(&file_path)?;
 
         if !self.no_move {
-            if let Err(e) = ledger.fill_envelopes() {
-                return Err(e);
-            }
+            ledger.fill_envelopes()?
         }
 
         match self.subcommand {
@@ -157,11 +152,14 @@ impl TryFrom<&str> for Subcommand {
                 'r' => Ok(Self::Register),
                 'i' => Ok(Self::Import),
                 'n' => Ok(Self::New),
-                _ =>
-                    Err(SilverfoxError::Basic(format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)))
+                _ => Err(SilverfoxError::Basic(format!(
+                    "`{s}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?"
+                ))),
             }
         } else {
-            Err(SilverfoxError::Basic(format!("`{}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?", s)))
+            Err(SilverfoxError::Basic(format!(
+                "`{s}` is not a recognized subcommand. subcommands need to be the first argument made to silverfox. did you misplace your subcommand?"
+            )))
         }
     }
 }
@@ -182,7 +180,7 @@ fn display_help() {
 fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, SilverfoxError> {
     match arg {
         Some(a) => Ok(a),
-        None => Err(SilverfoxError::Basic(format!("no value was supplied for the argument `{}`", name))),
+        None => Err(SilverfoxError::Basic(format!("no value was supplied for the argument `{name}`"))),
     }
 }
 

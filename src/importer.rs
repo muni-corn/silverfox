@@ -56,7 +56,7 @@ impl CsvImporter {
                 Ok(r) => records.push_back(r),
                 Err(e) => {
                     return Err(SilverfoxError::from(ParseError {
-                        message: Some(format!("there was an error reading csv records: {}", e)),
+                        message: Some(format!("there was an error reading csv records: {e}")),
                         context: None,
                     }))
                 }
@@ -163,11 +163,11 @@ impl Rules {
                         if c.is_whitespace() {
                             // a line starting with whitespace is a rule, so the flag must be set
                             parsing_subrules_rules = true;
-                            (*s).rules.add_from_line(line)?;
+                            s.rules.add_from_line(line)?;
                         } else {
                             // a line starting with a non-whitespace character is a pattern to the
                             // Subrules
-                            (*s).patterns.push(String::from(line));
+                            s.patterns.push(String::from(line));
                         }
                     }
 
@@ -179,7 +179,7 @@ impl Rules {
                     if let Some(c) = chars.next() {
                         if c.is_whitespace() {
                             // a line starting with whitespace is a rule
-                            (*s).rules.add_from_line(line)?;
+                            s.rules.add_from_line(line)?;
 
                             // don't parse any more (more parsing from here will cause unwanted
                             // changes to the root rules)
@@ -203,7 +203,7 @@ impl Rules {
                 parsing_subrules = Some(Subrules::from(&*self));
                 if let Some(i) = line.chars().position(|c| c.is_whitespace()) {
                     match parsing_subrules.as_mut() {
-                        Some(s) => (*s).patterns.push(String::from(&line[i + 1..])),
+                        Some(s) => s.patterns.push(String::from(&line[i + 1..])),
                         None => unreachable!(), // should be unreachable, as parsing_subrules was just initialized as Some
                     }
                 }
@@ -282,8 +282,7 @@ impl Rules {
                     } else {
                         return Err(SilverfoxError::from(ParseError {
                             message: Some(format!(
-                                "`{}` is not a rule that silverfox understands",
-                                rule_name
+                                "`{rule_name}` is not a rule that silverfox understands"
                             )),
                             context: Some(line.to_string()),
                         }));
@@ -331,8 +330,7 @@ impl Rules {
                         Err(e) => {
                             return Err(SilverfoxError::from(ParseError {
                                 message: Some(format!(
-                                    "the `skip` rule couldn't be parsed because of this error: {}",
-                                    e
+                                    "the `skip` rule couldn't be parsed because of this error: {e}"
                                 )),
                                 context: None,
                             }))
@@ -351,8 +349,7 @@ impl Rules {
                     } else {
                         return Err(SilverfoxError::from(ParseError {
                             message: Some(format!(
-                                "`{}` is not a rule that silverfox understands",
-                                rule_name
+                                "`{rule_name}` is not a rule that silverfox understands"
                             )),
                             context: Some(line.to_string()),
                         }));
@@ -396,8 +393,7 @@ impl Rules {
             if variables.contains_key(field_name) {
                 return Err(SilverfoxError::from(ParseError {
                     message: Some(format!(
-                        "there is a duplicate field definition in your rules file: `{}`",
-                        field_name
+                        "there is a duplicate field definition in your rules file: `{field_name}`"
                     )),
                     context: None,
                 }));
@@ -443,7 +439,7 @@ impl Rules {
         let mut postings: Vec<Posting> = Vec::new();
         for (index, account_name) in self.accounts.iter() {
             let raw_value = match self.amount_strs.get(index) {
-                Some(amount_str) => format!("{} {}", account_name, amount_str),
+                Some(amount_str) => format!("{account_name} {amount_str}"),
                 None => account_name.clone(),
             };
 
@@ -490,7 +486,7 @@ impl Rules {
         let mut result = String::from(s);
 
         for (v_name, v_value) in variables.iter() {
-            result = result.replace(format!("%{}%", v_name).as_str(), v_value);
+            result = result.replace(format!("%{v_name}%").as_str(), v_value);
         }
 
         result = result.replace("%%", "%"); // literal %

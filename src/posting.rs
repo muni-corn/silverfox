@@ -174,7 +174,7 @@ impl Posting {
 
     /// Returns a String that can be written in a file and parsed later on, giving the same result
     pub fn as_parsable(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 
     pub fn is_envelope(&self) -> bool {
@@ -230,9 +230,8 @@ impl ClassicPosting {
         let trimmed_line = utils::remove_comments(line).trim();
         let tokens = trimmed_line.split_whitespace().collect::<Vec<&str>>();
 
-        let amount_tokens: Vec<&str>;
         posting.account = tokens[0].to_string();
-        amount_tokens = tokens[1..].to_vec();
+        let amount_tokens: Vec<&str> = tokens[1..].to_vec();
 
         if let Err(e) = posting.parse_amount(&amount_tokens, decimal_symbol) {
             Err(SilverfoxError::from(e))
@@ -275,10 +274,7 @@ impl ClassicPosting {
         decimal_symbol: char,
     ) -> Result<(), ParseError> {
         self.balance_assertion =
-            match Self::parse_balance_assertion_amount(amount_tokens, decimal_symbol) {
-                Ok(a) => a,
-                Err(e) => return Err(e),
-            };
+            Self::parse_balance_assertion_amount(amount_tokens, decimal_symbol)?;
 
         self.cost_assertion = match Self::parse_price_amount(amount_tokens, decimal_symbol) {
             Ok(price_opt) => {
@@ -287,12 +283,7 @@ impl ClassicPosting {
                     Some(price)
                 } else {
                     // if no price, try to parse total cost
-                    match Self::parse_total_cost_amount(amount_tokens, decimal_symbol) {
-                        Ok(total_cost_opt) => {
-                            total_cost_opt
-                        }
-                        Err(e) => return Err(e),
-                    }
+                    Self::parse_total_cost_amount(amount_tokens, decimal_symbol)?
                 }
             }
             Err(e) => return Err(e),
@@ -388,15 +379,15 @@ impl fmt::Display for ClassicPosting {
         let mut postlude = String::new();
 
         if let Some(a) = &self.amount {
-            postlude.push_str(&format!("{}", a));
+            postlude.push_str(&format!("{a}"));
         }
 
         if let Some(c) = &self.cost_assertion {
-            postlude.push_str(&format!(" {}", c));
+            postlude.push_str(&format!(" {c}"));
         }
 
         if let Some(b) = &self.balance_assertion {
-            postlude.push_str(&format!(" ! {}", b));
+            postlude.push_str(&format!(" ! {b}"));
         }
 
         write!(f, "{:50} {}", self.account, postlude)
@@ -419,8 +410,8 @@ pub enum Cost {
 impl fmt::Display for Cost {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TotalCost(a) => write!(f, " = {}", a),
-            Self::UnitCost(a) => write!(f, " @ {}", a),
+            Self::TotalCost(a) => write!(f, " = {a}"),
+            Self::UnitCost(a) => write!(f, " @ {a}"),
         }
     }
 }

@@ -108,9 +108,8 @@ fn get_maximum_lengths(
             }
             Err(e) => {
                 return Err(SilverfoxError::Basic(format!(
-                    "couldn't display a register:\n\n{}",
-                    e
-                )))
+                    "couldn't display a register:\n\n{e}"
+                )));
             }
         };
 
@@ -127,7 +126,7 @@ fn get_maximum_lengths(
             reg_data
                 .amounts
                 .iter()
-                .map(|a| format!("{}", a).len())
+                .map(|a| format!("{a}").len())
                 .max()
                 .unwrap(),
         );
@@ -136,7 +135,7 @@ fn get_maximum_lengths(
         m.running_total = m.running_total.max(
             running_total
                 .iter()
-                .map(|a| format!("{}", a).len())
+                .map(|a| format!("{a}").len())
                 .max()
                 .unwrap(),
         );
@@ -170,7 +169,7 @@ fn print_lines(maximums: &MaximumLens, register_data: &[EntryRegisterData], _con
             );
 
             // TODO: Have Amount::display handle formatting arguments
-            print!("{}", prelude);
+            print!("{prelude}");
             println!(
                 "{:>amount_len$}  {:>running_total_len$}",
                 format!("{}", first_amount),

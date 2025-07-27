@@ -53,7 +53,7 @@ impl Ledger {
     /// Adds to the ledger from the contents parsed from the file at the `file_path`.
     fn add_from_file(&mut self, file_path: &Path) -> Result<(), SilverfoxError> {
         let s = fs::read_to_string(file_path)
-            .map_err(|e| SilverfoxError::file_error(&PathBuf::from(file_path), e))?;
+            .map_err(|e| SilverfoxError::file_error(PathBuf::from(file_path), e))?;
 
         // change directory to parent after reading to string, and before parsing
         let parent_dir = file_path.parent().unwrap();
@@ -80,9 +80,7 @@ impl Ledger {
                     chunk.push('\n');
                     chunk.push_str(line);
                 } else {
-                    if let Err(e) = self.parse_chunk(&chunk) {
-                        return Err(e);
-                    }
+                    self.parse_chunk(&chunk)?;
                     chunk = String::from(line);
                 }
             }
@@ -193,7 +191,7 @@ impl Ledger {
         };
 
         if let Err(e) = write!(file, "\n{}", entry.as_parsable(&self.date_format)) {
-            return Err(SilverfoxError::Basic(format!("{}", e)));
+            return Err(SilverfoxError::Basic(format!("{e}")));
         }
 
         self.add_entry(entry)
@@ -207,10 +205,7 @@ impl Ledger {
     }
 
     pub fn display_flat_balance(&self) -> Result<(), SilverfoxError> {
-        let totals_map = match self.get_totals() {
-            Ok(m) => m,
-            Err(e) => return Err(e),
-        };
+        let totals_map = self.get_totals()?;
 
         let mut totals_vec = totals_map.iter().collect::<Vec<(&String, &AmountPool)>>();
         totals_vec.sort_by(|a, b| a.0.cmp(b.0));

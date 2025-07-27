@@ -35,7 +35,7 @@ impl Account {
             }
         };
 
-        let account_name = Account::parse_header(&header.to_string())?;
+        let account_name = Account::parse_header(header)?;
         let expense_envelopes = Vec::new();
         let goal_envelopes = Vec::new();
 
@@ -91,7 +91,7 @@ impl Account {
         // remove comments
         line = utils::remove_comments(line);
 
-        let tokens = line.trim().split_whitespace().collect::<Vec<&str>>();
+        let tokens = line.split_whitespace().collect::<Vec<&str>>();
         match tokens.len().cmp(&2) {
             Ordering::Greater => Err(ParseError {
                 context: Some(line.to_string()),
@@ -182,14 +182,14 @@ impl Account {
             if amount.mag == 0.0 {
                 continue;
             }
-            println!("    {}", amount)
+            println!("    {amount}")
         }
 
         // display expenses
         if !self.expense_envelopes.is_empty() {
             println!("  expenses");
             for envelope in self.expense_envelopes.iter() {
-                println!("{}", envelope);
+                println!("{envelope}");
             }
         }
 
@@ -197,7 +197,7 @@ impl Account {
         if !self.goal_envelopes.is_empty() {
             println!("  goals");
             for envelope in self.goal_envelopes.iter() {
-                println!("{}", envelope);
+                println!("{envelope}");
             }
         }
 

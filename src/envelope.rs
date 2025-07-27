@@ -178,7 +178,7 @@ impl Frequency {
             match NaiveDate::parse_from_str(s, date_format) {
                 Ok(d) => Ok(Self::Once(d)),
                 Err(_) => {
-                    let message = format!("couldn't parse `{}` with format `{}`", s, date_format);
+                    let message = format!("couldn't parse `{s}` with format `{date_format}`");
 
                     Err(ParseError {
                         message: Some(message),
@@ -191,10 +191,7 @@ impl Frequency {
 
     /// Parses, you know, a Weekday. Returns an Option because it may or may not exist.
     fn parse_weekday(s: &str) -> Option<chrono::Weekday> {
-        match chrono::Weekday::from_str(s) {
-            Ok(w) => Some(w),
-            _ => None,
-        }
+        chrono::Weekday::from_str(s).ok()
     }
 
     /// Parses a day of the month. Returns an Option because it may or may not exist. Any
@@ -202,12 +199,9 @@ impl Frequency {
     /// "1stjalsdkxbuz" and it would still return 1. "2faxcbya7uw" would return 27.
     fn parse_day_of_month(s: &str) -> Option<u32> {
         // filter out any letters, spaces, etc, and parse the number in the string
-        let num = s.chars().filter(|c| c.is_digit(10)).collect::<String>();
+        let num = s.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
 
-        match num.parse::<u32>() {
-            Ok(n) => Some(n),
-            _ => None,
-        }
+        num.parse::<u32>().ok()
     }
 
     /// Gets the Frequency's last due date based on the next due date
@@ -396,7 +390,6 @@ impl Envelope {
         account_name: &str,
     ) -> Result<Self, ParseError> {
         let tokens = utils::remove_comments(header)
-            .trim()
             .split_whitespace()
             .collect::<Vec<&str>>();
 
@@ -407,10 +400,7 @@ impl Envelope {
             });
         }
 
-        let envelope_type = match EnvelopeType::from_str(tokens[0]) {
-            Ok(t) => t,
-            Err(e) => return Err(e),
-        };
+        let envelope_type = EnvelopeType::from_str(tokens[0])?;
 
         // parse `starting` clause
         let (starting_date, starting_idx) = match Self::extract_starting(header, date_format) {
@@ -426,10 +416,7 @@ impl Envelope {
             header = &header[..i];
         }
 
-        let freq = match Self::extract_frequency(header, date_format, starting_date) {
-            Ok(f) => f,
-            Err(e) => return Err(e),
-        };
+        let freq = Self::extract_frequency(header, date_format, starting_date)?;
 
         let envelope = Envelope {
             name: String::from(tokens[1]),
@@ -459,9 +446,9 @@ impl Envelope {
             let key = line_split[0];
 
             // get the index of the first space (because that's where the values begins)
-            let idx;
-            match trimmed_line.find(' ') {
-                Some(i) => idx = i,
+
+            let idx = match trimmed_line.find(' ') {
+                Some(i) => i,
                 None => {
                     let message = format!(
                         "the property `{}` to an envelope (`{}` in {}) is blank",
@@ -473,7 +460,7 @@ impl Envelope {
                     };
                     return Err(err);
                 }
-            }
+            };
 
             let value = &trimmed_line[idx..].to_string();
 
@@ -482,9 +469,7 @@ impl Envelope {
                     "for" => {
                         // parse a `for` property, which should only include an account (no spaces,
                         // of course)
-                        if let Err(e) = self.add_account(value) {
-                            return Err(e);
-                        }
+                        self.add_account(value)?
                     }
                     "amount" => {
                         // set the amount of the envelope
@@ -507,8 +492,7 @@ impl Envelope {
                     _ => {
                         return Err(ParseError {
                             message: Some(format!(
-                                "the `{}` property isn't understood by silverfox",
-                                key
+                                "the `{key}` property isn't understood by silverfox"
                             )),
                             context: None,
                         })
@@ -598,10 +582,8 @@ impl Envelope {
                 Ok(result)
             }
             Err(_) => {
-                let message = format!(
-                    "couldn't parse starting date `{}` with format `{}`",
-                    s, date_format
-                );
+                let message =
+                    format!("couldn't parse starting date `{s}` with format `{date_format}`");
 
                 Err(ParseError {
                     message: Some(message),
@@ -920,7 +902,7 @@ impl fmt::Display for Envelope {
             symbol: self.next_amount.symbol.clone(),
         };
         let next_prelude = if let Some(d) = self.get_next_due_date() {
-            format!("next (on {})", d)
+            format!("next (on {d})")
         } else {
             "next".to_string()
         };
@@ -937,11 +919,7 @@ impl fmt::Display for Envelope {
 
         writeln!(f, "    {}", self.name)?;
         writeln!(f, "      {:20} {:>30} {}", "now", now_text, now_bar)?;
-        write!(
-            f,
-            "      {:20} {:>30} {}",
-            next_prelude, next_text, next_bar
-        )
+        write!(f, "      {next_prelude:20} {next_text:>30} {next_bar}")
     }
 }
 
