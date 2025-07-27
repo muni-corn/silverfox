@@ -2,7 +2,7 @@
 name = "silverfox"
 version = "0.1.0"
 authors = ["municorn <municorn@musicaloft.com>"]
-edition = "2018"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,6 +10,6 @@ edition = "2018"
 clap = "2.33.0"
 chrono = "0.4.10"
 csv = "1.1"
-console = "0.12.0"                    # A terminal and console abstraction for Rust
-terminal_size = "0.1.13"           # Gets the size of your Linux or Windows terminal
+console = "0.12.0" # A terminal and console abstraction for Rust
+terminal_size = "0.1.13" # Gets the size of your Linux or Windows terminal
 pest = "2.8.1"
