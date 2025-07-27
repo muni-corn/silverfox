@@ -160,12 +160,13 @@ impl Frequency {
             } else if let Some(d) = Self::parse_day_of_month(what) {
                 Ok(Self::Monthly(d))
             } else if what == "year" {
-                match starting_date {
-                    Some(d) => Ok(Self::Annually(d)),
-                    None => Err(ParseError{
-                        context: Some(s.to_string()),
-                        message: Some("envelopes due annually require a `starting` date so that silverfox knows which day of the year the envelope is due".to_string()),
-                    })
+                if let Some(d) = starting_date {
+                    Ok(Self::Annually(d))
+                } else {
+                    Err(ParseError{
+                                        context: Some(s.to_string()),
+                                        message: Some("envelopes due annually require a `starting` date so that silverfox knows which day of the year the envelope is due".to_string()),
+                                    })
                 }
             } else {
                 Err(ParseError {
@@ -175,16 +176,15 @@ impl Frequency {
             }
         } else {
             // probably not repeating, so let's just try to parse a date
-            match NaiveDate::parse_from_str(s, date_format) {
-                Ok(d) => Ok(Self::Once(d)),
-                Err(_) => {
-                    let message = format!("couldn't parse `{s}` with format `{date_format}`");
+            if let Ok(d) = NaiveDate::parse_from_str(s, date_format) {
+                Ok(Self::Once(d))
+            } else {
+                let message = format!("couldn't parse `{s}` with format `{date_format}`");
 
-                    Err(ParseError {
-                        message: Some(message),
-                        context: None,
-                    })
-                }
+                Err(ParseError {
+                    message: Some(message),
+                    context: None,
+                })
             }
         }
     }
@@ -207,20 +207,21 @@ impl Frequency {
     /// Gets the Frequency's last due date based on the next due date
     pub fn get_last_due_date(&self) -> Option<NaiveDate> {
         // get the next due date and just subtract
-        match self.get_next_due_date() {
-            Some(next_date) => match self {
+        if let Some(next_date) = self.get_next_due_date() {
+            match self {
                 Self::Weekly(_) => Some(next_date - chrono::Duration::days(7)),
                 Self::Biweekly(_) => Some(next_date - chrono::Duration::days(14)),
                 Self::Monthly(_) => Some(Self::subtract_months(next_date, 1)),
                 Self::Bimonthly(_) => Some(Self::subtract_months(next_date, 2)),
                 Self::Annually(d) => Some(d.with_year(d.year() - 1).unwrap()),
                 _ => None,
-            },
-            None => match self {
+            }
+        } else {
+            match self {
                 Self::Once(d) => Some(*d),
                 Self::Never => None,
                 _ => unreachable!(),
-            },
+            }
         }
     }
 
@@ -287,11 +288,14 @@ impl Frequency {
                         let new_month = (month0_plus_two % 12) + 1; // + 1 so it's one-based
 
                         // basically create a new date with the month, year and day
-                        date = match NaiveDate::from_ymd_opt(new_year, new_month, day_of_month) {
-                            Some(x) => x,
-                            None => Self::get_last_date_of_month(NaiveDate::from_ymd(
-                                new_year, new_month, 1,
-                            )),
+                        date = if let Some(x) =
+                            NaiveDate::from_ymd_opt(new_year, new_month, day_of_month)
+                        {
+                            x
+                        } else {
+                            Self::get_last_date_of_month(
+                                NaiveDate::from_ymd_opt(new_year, new_month, 1).unwrap(),
+                            )
                         };
                     }
 
@@ -403,13 +407,14 @@ impl Envelope {
         let envelope_type = EnvelopeType::from_str(tokens[0])?;
 
         // parse `starting` clause
-        let (starting_date, starting_idx) = match Self::extract_starting(header, date_format) {
-            Ok(o) => match o {
-                Some(t) => (Some(t.0), Some(t.1)),
-                None => (None, None),
-            },
-            Err(e) => return Err(e),
-        };
+        let (starting_date, starting_idx) =
+            Self::extract_starting(header, date_format).map(|o| {
+                if let Some(t) = o {
+                    (Some(t.0), Some(t.1))
+                } else {
+                    (None, None)
+                }
+            })?;
 
         // if starting exists, trim the string supplied so that `starting` is cut off
         if let Some(i) = starting_idx {
@@ -447,19 +452,16 @@ impl Envelope {
 
             // get the index of the first space (because that's where the values begins)
 
-            let idx = match trimmed_line.find(' ') {
-                Some(i) => i,
-                None => {
-                    let message = format!(
-                        "the property `{}` to an envelope (`{}` in {}) is blank",
-                        line_split[0], self.name, account_name
-                    );
-                    let err = ParseError {
-                        message: Some(message),
-                        context: None,
-                    };
-                    return Err(err);
-                }
+            let Some(idx) = trimmed_line.find(' ') else {
+                let message = format!(
+                    "the property `{}` to an envelope (`{}` in {}) is blank",
+                    line_split[0], self.name, account_name
+                );
+                let err = ParseError {
+                    message: Some(message),
+                    context: None,
+                };
+                return Err(err);
             };
 
             let value = &trimmed_line[idx..].to_string();
@@ -542,21 +544,15 @@ impl Envelope {
 
         let frequency_index;
         // first try matching by "by", since it will always come after "by" whether "by" or "due by"
-        match clean_header.rfind(" by ") {
-            Some(i) => {
-                frequency_index = i + " by ".len();
-            },
-            // if not found, search for "due"
-            None => match clean_header.rfind(" due ") {
-                Some(i) => {
-                    frequency_index = i + " due ".len();
-                },
-                // if that's not found, then pbpbpbpbpbpbpbpbpbp
-                None => return Err(ParseError {
-                    message: Some("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date".to_string()),
-                    context: Some(clean_header.to_string())
-                })
-            }
+        if let Some(i) = clean_header.rfind(" by ") {
+            frequency_index = i + " by ".len();
+        } else if let Some(i) = clean_header.rfind(" due ") {
+            frequency_index = i + " due ".len();
+        } else {
+            return Err(ParseError {
+                message: Some("couldn't figure out when this envelope is due; use `no date` if you don't want to specify a due date".to_string()),
+                                    context: Some(clean_header.to_string())
+                                });
         }
 
         let raw_freq = &clean_header[frequency_index..];
@@ -569,9 +565,8 @@ impl Envelope {
         s: &str,
         date_format: &str,
     ) -> Result<Option<(NaiveDate, usize)>, ParseError> {
-        let starting_idx = match s.find(" starting ") {
-            Some(i) => i,
-            None => return Ok(None),
+        let Some(starting_idx) = s.find(" starting ") else {
+            return Ok(None);
         };
 
         let date_idx = starting_idx + " starting ".len();
@@ -673,18 +668,12 @@ impl Envelope {
 
         // calculate sums for envelope
         for posting in entry.get_postings() {
-            let mut amount_to_add = match posting.get_amount() {
-                Some(a) => a.clone(),
-                None => match entry.get_blank_amount() {
-                    Ok(o) => {
-                        if let Some(b) = o {
-                            b
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    Err(e) => return Err(e),
-                },
+            let mut amount_to_add = if let Some(a) = posting.get_amount() {
+                a.clone()
+            } else {
+                entry
+                    .get_blank_amount()
+                    .map(|o| o.unwrap_or_else(|| unreachable!()))?
             };
 
             // if symbols don't match, try converting to native currency
@@ -705,21 +694,16 @@ envelope. hopefully that all makes sense!", self.name, self.account);
                         message: Some(message),
                         context: Some(entry.as_full_string()),
                     });
+                } else if let Some(m) = posting.get_original_native_value() {
+                    amount_to_add.mag = m;
                 } else {
-                    match posting.get_original_native_value() {
-                        Some(m) => {
-                            amount_to_add.mag = m;
-                        },
-                        None => {
-                            return Err(ProcessingError::default()
-                                .set_message(
-"silverfox wants to infer how much money to move to or from an envelope, but
-can't; you'll need to specify a manual envelope posting here with the correct
-amount")
-                                .set_context(entry.as_full_string().as_str())
-                            )
-                        }
-                    }
+                    return Err(ProcessingError::default()
+                                                                    .set_message(
+                                    "silverfox wants to infer how much money to move to or from an envelope, but
+                can't; you'll need to specify a manual envelope posting here with the correct
+                amount")
+                                                                    .set_context(entry.as_full_string().as_str())
+                                                                );
                 }
             }
 

@@ -22,12 +22,11 @@ impl CommandFlags {
         let mut args = env::args();
 
         // parse subcommand
-        let subcommand = match args.nth(1) {
-            Some(a) => Subcommand::try_from(a.as_str())?,
-            None => {
-                display_help();
-                std::process::exit(0);
-            }
+        let subcommand = if let Some(a) = args.nth(1) {
+            Subcommand::try_from(a.as_str())?
+        } else {
+            display_help();
+            std::process::exit(0);
         };
 
         let mut flags = CommandFlags {
@@ -95,13 +94,12 @@ impl CommandFlags {
             Subcommand::Envelopes => ledger.display_envelopes(),
             Subcommand::Register => ledger.display_register(self.begin_date, self.end_date, None),
             Subcommand::Import => {
-                match &self.csv_file {
-                    Some(c) => {
-                        return ledger.import_csv(c, self.rules_file.as_ref())
-                    },
-                    None => {
-                        return Err(SilverfoxError::Basic(String::from("if you're importing a csv file, you need to specify the csv file with the --csv flag")))
-                    },
+                if let Some(c) = &self.csv_file {
+                    return ledger.import_csv(c, self.rules_file.as_ref());
+                } else {
+                    return Err(SilverfoxError::Basic(String::from(
+                        "if you're importing a csv file, you need to specify the csv file with the --csv flag",
+                    )));
                 }
             }
             // Subcommand::Register => ledger.display_register(self.period, self.begin_date, self.end_date),
@@ -178,9 +176,12 @@ fn display_help() {
 }
 
 fn parse_argument_value(arg: Option<String>, name: &str) -> Result<String, SilverfoxError> {
-    match arg {
-        Some(a) => Ok(a),
-        None => Err(SilverfoxError::Basic(format!("no value was supplied for the argument `{name}`"))),
+    if let Some(a) = arg {
+        Ok(a)
+    } else {
+        Err(SilverfoxError::Basic(format!(
+            "no value was supplied for the argument `{name}`"
+        )))
     }
 }
 

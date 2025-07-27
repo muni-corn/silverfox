@@ -116,23 +116,22 @@ impl Posting {
     ) -> Result<Self, SilverfoxError> {
         // match first token, to decide on parsing an envelope posting or a classic posting
         line = utils::remove_comments(line).trim();
-        match line.split_whitespace().next() {
-            Some(t) => {
-                if t == "envelope" {
-                    Ok(Posting::from(EnvelopePosting::parse(
-                        line,
-                        decimal_symbol,
-                        accounts,
-                    )?))
-                } else {
-                    Ok(Posting::from(ClassicPosting::parse(
-                        line,
-                        decimal_symbol,
-                        accounts,
-                    )?))
-                }
+        if let Some(t) = line.split_whitespace().next() {
+            if t == "envelope" {
+                Ok(Posting::from(EnvelopePosting::parse(
+                    line,
+                    decimal_symbol,
+                    accounts,
+                )?))
+            } else {
+                Ok(Posting::from(ClassicPosting::parse(
+                    line,
+                    decimal_symbol,
+                    accounts,
+                )?))
             }
-            None => Err(SilverfoxError::from(ParseError {
+        } else {
+            Err(SilverfoxError::from(ParseError {
                 message: Some("nothing to parse for a Posting".to_string()),
                 context: None,
             })),
@@ -250,9 +249,12 @@ impl ClassicPosting {
         decimal_symbol: char,
     ) -> Result<(), ParseError> {
         let mut iter = amount_tokens.iter();
-        let raw_amount = match iter.position(|&s| s == "@" || s == "!" || s == "=" || s == "!!") {
-            Some(cutoff) => amount_tokens[..cutoff].join(" "),
-            None => amount_tokens.join(" "),
+        let raw_amount = if let Some(cutoff) =
+            iter.position(|&s| s == "@" || s == "!" || s == "=" || s == "!!")
+        {
+            amount_tokens[..cutoff].join(" ")
+        } else {
+            amount_tokens.join(" ")
         };
 
         if raw_amount.trim().is_empty() {
@@ -305,11 +307,12 @@ impl ClassicPosting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Cost>, ParseError> {
-        match extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
+        if let Some(a) = extract_amount(amount_tokens, decimal_symbol, "@", |&s| {
             s == "!" || s == "!!" || s == "="
         })? {
-            Some(a) => Ok(Some(Cost::UnitCost(a))),
-            None => Ok(None),
+            Ok(Some(Cost::UnitCost(a)))
+        } else {
+            Ok(None)
         }
     }
 
@@ -317,11 +320,12 @@ impl ClassicPosting {
         amount_tokens: &[&str],
         decimal_symbol: char,
     ) -> Result<Option<Cost>, ParseError> {
-        match extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
+        if let Some(a) = extract_amount(amount_tokens, decimal_symbol, "=", |&s| {
             s == "!" || s == "!!" || s == "@"
         })? {
-            Some(a) => Ok(Some(Cost::TotalCost(a))),
-            None => Ok(None),
+            Ok(Some(Cost::TotalCost(a)))
+        } else {
+            Ok(None)
         }
     }
 
@@ -348,8 +352,8 @@ impl ClassicPosting {
             } else {
                 // otherwise, if the cost assertion is a native amount, we'll use that to
                 // determine the native value
-                match &self.cost_assertion {
-                    Some(c) => match c {
+                if let Some(c) = &self.cost_assertion {
+                    match c {
                         Cost::TotalCost(b) => {
                             if b.symbol.is_none() {
                                 Some(b.mag)
@@ -364,8 +368,9 @@ impl ClassicPosting {
                                 None
                             }
                         }
-                    },
-                    None => None,
+                    }
+                } else {
+                    None
                 }
             }
         } else {
@@ -427,23 +432,19 @@ where
 {
     // find the balance_assertion token
     let mut iter = amount_tokens.iter();
-    match iter.position(|&s| s == wanted_operator) {
-        Some(i) => {
+    if let Some(i) = iter.position(|&s| s == wanted_operator) {
+        // trim unwanted tokens
+        let mut useful_tokens = &amount_tokens[i + 1..];
+
+        // find any other tokens that should be filtered out
+        if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
             // trim unwanted tokens
-            let mut useful_tokens = &amount_tokens[i + 1..];
-
-            // find any other tokens that should be filtered out
-            if let Some(i) = useful_tokens.iter().position(unwanted_op_predicate) {
-                // trim unwanted tokens
-                useful_tokens = &useful_tokens[..i];
-            }
-
-            // parse the amount
-            match Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol) {
-                Ok(a) => Ok(Some(a)),
-                Err(e) => Err(e),
-            }
+            useful_tokens = &useful_tokens[..i];
         }
-        None => Ok(None),
+
+        // parse the amount
+        Amount::parse(useful_tokens.join(" ").as_str(), decimal_symbol).map(Some)
+    } else {
+        Ok(None)
     }
 }

@@ -23,16 +23,13 @@ impl Account {
         date_format: &str,
     ) -> Result<Self, SilverfoxError> {
         let mut lines = chunk.lines();
-        let header = match lines.next() {
-            Some(l) => l,
-            None => {
-                return Err(SilverfoxError::from(ParseError {
-                    context: Some(chunk.to_string()),
-                    message: Some(
-                        "account header can't be parsed because it doesn't exist".to_string(),
-                    ),
-                }))
-            }
+        let Some(header) = lines.next() else {
+            return Err(SilverfoxError::from(ParseError {
+                context: Some(chunk.to_string()),
+                message: Some(
+                    "account header can't be parsed because it doesn't exist".to_string(),
+                ),
+            }));
         };
 
         let account_name = Account::parse_header(header)?;

@@ -223,18 +223,17 @@ impl Entry {
                 // returns an error
                 let mut blank_amount = Amount::zero();
                 for posting in &self.postings {
-                    match posting.get_original_native_value() {
-                        Some(v) => blank_amount.mag -= v,
-                        None => {
-                            // native_value will be None for the blank amount, so only throw an
-                            // error if the posting's amount is Some
-                            if posting.get_amount().is_some() {
-                                let err = ProcessingError::default().set_message(
-                                    "silverfox couldn't infer a value for an entry's blank posting amount. there are
+                    if let Some(v) = posting.get_original_native_value() {
+                        blank_amount.mag -= v
+                    } else {
+                        // native_value will be None for the blank amount, so only throw an
+                        // error if the posting's amount is Some
+                        if posting.get_amount().is_some() {
+                            let err = ProcessingError::default().set_message(
+                                                        "silverfox couldn't infer a value for an entry's blank posting amount. there are
 multiple currencies in this entry, but one posting does not provide its
 currency's worth in your native currency.").set_context(&self.as_full_string());
-                                return Err(err);
-                            }
+                            return Err(err);
                         }
                     }
                 }
@@ -387,9 +386,10 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 
             for posting in iter {
                 // this code was copied and pasted from above, maybe consider writing a function
-                let posting_symbol = match posting.get_amount() {
-                    Some(posting_amount) => posting_amount.symbol.clone(),
-                    None => continue,
+                let posting_symbol = if let Some(posting_amount) = posting.get_amount() {
+                    posting_amount.symbol.clone()
+                } else {
+                    continue;
                 };
 
                 if posting_symbol != symbol_to_match {
@@ -408,11 +408,14 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
     ) -> Result<Option<EntryRegisterData>, ProcessingError> {
         // XXX: This closure is a duplicate of the one in
         // `ledger::display_register()`
-        let is_account_name_focused = |account_name: &str| match account_match {
-            Some(match_str) => account_name.contains(match_str),
-            // TODO: an issue ticket is open to further solidify whether or not an account is an
-            // "asset", so this will be changed soon (it's kinda dumb right now)
-            None => account_name.starts_with("asset"),
+        let is_account_name_focused = |account_name: &str| {
+            if let Some(match_str) = account_match {
+                account_name.contains(match_str)
+            } else {
+                // TODO: an issue ticket is open to further solidify whether or not an account
+                // is an "asset", so this will be changed soon (it's kinda dumb right now)
+                account_name.starts_with("asset")
+            }
         };
 
         let (positive_name, negative_name, amounts) = {
@@ -499,34 +502,26 @@ currency's worth in your native currency.").set_context(&self.as_full_string());
 
         let mut s = String::new();
 
-        match &self.payee {
-            Some(p) => match &self.comment {
-                Some(c) => {
-                    s.push_str(
-                        format!(
-                            "{} {} {} [{}] // {}\n",
-                            date, self.status, self.description, p, c
-                        )
-                        .as_str(),
-                    );
-                }
-                None => {
-                    s.push_str(
-                        format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str(),
-                    );
-                }
-            },
-            None => match &self.comment {
-                Some(c) => {
-                    s.push_str(
-                        format!("{} {} {} // {}\n", date, self.status, self.description, c)
-                            .as_str(),
-                    );
-                }
-                None => {
-                    s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
-                }
-            },
+        if let Some(p) = &self.payee {
+            if let Some(c) = &self.comment {
+                s.push_str(
+                    format!(
+                        "{} {} {} [{}] // {}\n",
+                        date, self.status, self.description, p, c
+                    )
+                    .as_str(),
+                );
+            } else {
+                s.push_str(
+                    format!("{} {} {} [{}]\n", date, self.status, self.description, p).as_str(),
+                );
+            }
+        } else if let Some(c) = &self.comment {
+            s.push_str(
+                format!("{} {} {} // {}\n", date, self.status, self.description, c).as_str(),
+            );
+        } else {
+            s.push_str(format!("{} {} {}\n", date, self.status, self.description).as_str());
         }
 
         for posting in &self.postings {

@@ -266,13 +266,10 @@ impl Add<&Amount> for AmountPool {
 
     fn add(mut self, amount: &Amount) -> Self::Output {
         let mut iter = self.pool.iter_mut();
-        match iter.find(|a| a.symbol == amount.symbol) {
-            Some(a) => {
-                *a += amount;
-            }
-            None => {
-                self.pool.push(amount.clone());
-            }
+        if let Some(a) = iter.find(|a| a.symbol == amount.symbol) {
+            *a += amount;
+        } else {
+            self.pool.push(amount.clone());
         }
 
         self
@@ -290,13 +287,10 @@ impl Sub<Amount> for AmountPool {
 impl AddAssign<&Amount> for AmountPool {
     fn add_assign(&mut self, amount: &Amount) {
         let mut iter = self.pool.iter_mut();
-        match iter.find(|a| a.symbol == amount.symbol) {
-            Some(a) => {
-                *a += amount;
-            }
-            None => {
-                self.pool.push(amount.clone());
-            }
+        if let Some(a) = iter.find(|a| a.symbol == amount.symbol) {
+            *a += amount;
+        } else {
+            self.pool.push(amount.clone());
         }
     }
 }
@@ -312,13 +306,10 @@ impl Sub<&Amount> for AmountPool {
 impl SubAssign<&Amount> for AmountPool {
     fn sub_assign(&mut self, amount: &Amount) {
         let mut iter = self.pool.iter_mut();
-        match iter.find(|a| a.symbol == amount.symbol) {
-            Some(a) => {
-                *a -= amount;
-            }
-            None => {
-                self.pool.push(-amount.clone());
-            }
+        if let Some(a) = iter.find(|a| a.symbol == amount.symbol) {
+            *a -= amount;
+        } else {
+            self.pool.push(-amount.clone());
         }
     }
 }

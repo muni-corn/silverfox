@@ -75,15 +75,10 @@ impl Iterator for CsvImporter {
     type Item = Result<Entry, SilverfoxError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.records.pop_front() {
-            None => None,
-            Some(r) => {
-                Some(
-                    self.rules
-                        .get_entry_from_record(&r, &self.ledger_account_set.iter().collect()),
-                ) // blech
-            }
-        }
+        self.records.pop_front().map(|r| {
+            self.rules
+                .get_entry_from_record(&r, &self.ledger_account_set.iter().collect())
+        })
     }
 }
 
@@ -202,9 +197,10 @@ impl Rules {
             if line.starts_with("if") {
                 parsing_subrules = Some(Subrules::from(&*self));
                 if let Some(i) = line.chars().position(|c| c.is_whitespace()) {
-                    match parsing_subrules.as_mut() {
-                        Some(s) => s.patterns.push(String::from(&line[i + 1..])),
-                        None => unreachable!(), // should be unreachable, as parsing_subrules was just initialized as Some
+                    if let Some(s) = parsing_subrules.as_mut() {
+                        s.patterns.push(String::from(&line[i + 1..]))
+                    } else {
+                        unreachable!()
                     }
                 }
             } else {
@@ -223,17 +219,16 @@ impl Rules {
     fn add_from_line(&mut self, mut line: &str) -> Result<(), SilverfoxError> {
         line = line.trim_start();
 
-        let split_index = match line.chars().position(|c| c.is_whitespace()) {
-            Some(i) => i,
-            None => {
-                return Err(SilverfoxError::from(ParseError {
-                    message: Some(format!(
-                        "this rule has no value. use `-` if you want to discard a value:\n\n{} -",
-                        line.trim()
-                    )),
-                    context: Some(line.to_string()),
-                }))
-            }
+        let split_index = if let Some(i) = line.chars().position(|c| c.is_whitespace()) {
+            i
+        } else {
+            return Err(SilverfoxError::from(ParseError {
+                message: Some(format!(
+                    "this rule has no value. use `-` if you want to discard a value:\n\n{} -",
+                    line.trim()
+                )),
+                context: Some(line.to_string()),
+            }));
         };
 
         // the first token is the rule name
@@ -438,9 +433,10 @@ impl Rules {
         // make postings from account and amount sets
         let mut postings: Vec<Posting> = Vec::new();
         for (index, account_name) in self.accounts.iter() {
-            let raw_value = match self.amount_strs.get(index) {
-                Some(amount_str) => format!("{account_name} {amount_str}"),
-                None => account_name.clone(),
+            let raw_value = if let Some(amount_str) = self.amount_strs.get(index) {
+                format!("{account_name} {amount_str}")
+            } else {
+                account_name.clone()
             };
 
             let injected = Self::inject_variables(&raw_value, &variables);

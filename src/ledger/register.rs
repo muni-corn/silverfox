@@ -19,15 +19,19 @@ impl Register {
             )));
         };
 
-        // a "focused" account is the focus of the register. in other words, numbers displayed
-        // revolve around the focused account. if money flows into the account, it is displayed as
-        // a positive number on the register. if money flows out, it is displayed as a negative
-        // number.
-        let is_account_name_focused = |account_name: &str| match &account_match {
-            Some(match_str) => account_name.contains(match_str),
-            // TODO: an issue ticket is open to further solidify whether or not an account is an
-            // "asset", so this will be changed soon (it's kinda dumb right now)
-            None => account_name.starts_with("asset"),
+        // a "focused" account is the focus of the register. in other words, numbers
+        // displayed revolve around the focused account. if money flows into the
+        // account, it is displayed as a positive number on the register. if
+        // money flows out, it is displayed as a negative number.
+        let is_account_name_focused = |account_name: &str| {
+            if let Some(match_str) = &account_match {
+                account_name.contains(match_str)
+            } else {
+                // TODO: an issue ticket is open to further solidify whether or not an account
+                // is an "asset", so this will be changed soon (it's kinda dumb right
+                // now)
+                account_name.starts_with("asset")
+            }
         };
 
         let filtered: Vec<&Entry> = entries
@@ -38,15 +42,16 @@ impl Register {
                     .iter()
                     .any(|p| is_account_name_focused(p.get_account()));
 
-                let date_in_range = match begin_date {
-                    Some(begin) => match end_date {
-                        Some(end) => e.get_date() <= &end && e.get_date() >= &begin,
-                        None => e.get_date() >= &begin,
-                    },
-                    None => match end_date {
-                        Some(end) => e.get_date() <= &end,
-                        None => true,
-                    },
+                let date_in_range = if let Some(begin) = begin_date {
+                    if let Some(end) = end_date {
+                        e.get_date() <= &end && e.get_date() >= &begin
+                    } else {
+                        e.get_date() >= &begin
+                    }
+                } else if let Some(end) = end_date {
+                    e.get_date() <= &end
+                } else {
+                    true
                 };
 
                 // entries must have at least one focused account and be within the range between the

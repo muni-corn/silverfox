@@ -113,46 +113,45 @@ impl Ledger {
             Some("currency") => self.set_currency(value),
             Some("date_format") => self.set_date_format(value),
             Some("include") => self.include(value),
-            _ => self.parse_entry(chunk),
+            Some(_) => self.parse_entry(chunk),
         }
     }
 
     /// Parses a currency symbol
     fn set_currency(&mut self, cur: Option<&str>) -> Result<(), SilverfoxError> {
-        match cur {
-            None => Err(SilverfoxError::from(ParseError {
+        if let Some(c) = cur {
+            self.default_currency = c.into();
+            Ok(())
+        } else {
+            Err(SilverfoxError::from(ParseError {
                 message: Some("no currency provided, but currency keyword was found".to_string()),
                 context: None,
-            })),
-            Some(c) => {
-                self.default_currency = c.into();
-                Ok(())
-            }
+            }))
         }
     }
 
     fn set_date_format(&mut self, date_format: Option<&str>) -> Result<(), SilverfoxError> {
-        match date_format {
-            None => Err(SilverfoxError::from(ParseError {
+        if let Some(d) = date_format {
+            self.date_format = d.into();
+            Ok(())
+        } else {
+            Err(SilverfoxError::from(ParseError {
                 context: None,
                 message: Some(
                     "no date format provided, but date_format keyword was found".to_string(),
                 ),
-            })),
-            Some(d) => {
-                self.date_format = d.into();
-                Ok(())
-            }
+            }))
         }
     }
 
     fn include(&mut self, file: Option<&str>) -> Result<(), SilverfoxError> {
-        match file {
-            None => Err(SilverfoxError::from(ParseError {
+        if let Some(f) = file {
+            self.add_from_file(&PathBuf::from(f))
+        } else {
+            Err(SilverfoxError::from(ParseError {
                 message: Some("no file provided to an `include` clause".to_string()),
                 context: None,
-            })),
-            Some(f) => self.add_from_file(&PathBuf::from(f)),
+            }))
         }
     }
 
@@ -227,35 +226,28 @@ impl Ledger {
             for posting in entry.get_postings() {
                 let posting_amount = posting.get_amount();
                 let posting_account = posting.get_account();
-                // if the account key exists, just add to it. if it doesn't exist, insert a new key
-                // with the amount
-                match totals_map.get_mut(posting_account) {
-                    Some(pool) => {
-                        if let Some(a) = posting_amount {
-                            *pool += a.clone();
-                        } else {
-                            match entry.get_blank_amount() {
-                                Ok(o) => {
-                                    if let Some(b) = o {
-                                        *pool += b;
-                                    }
-                                }
-                                Err(e) => return Err(SilverfoxError::from(e)),
+                // if the account key exists, just add to it. if it doesn't exist, insert a new
+                // key with the amount
+                if let Some(pool) = totals_map.get_mut(posting_account) {
+                    if let Some(a) = posting_amount {
+                        *pool += a.clone();
+                    } else {
+                        match entry.get_blank_amount() {
+                            Ok(Some(b)) => {
+                                *pool += b;
                             }
+                            Err(e) => return Err(SilverfoxError::from(e)),
+                            _ => {}
                         }
                     }
-                    None => {
-                        // if the posting amount exists, set an AmountPool from the amount as the
-                        // key's value. otherwise, use an AmountPool from a zero Amount.
-                        if let Some(a) = posting_amount {
-                            totals_map
-                                .insert(posting_account.to_owned(), AmountPool::from(a.clone()));
-                        } else {
-                            totals_map.insert(
-                                posting_account.to_owned(),
-                                AmountPool::from(Amount::zero()),
-                            );
-                        }
+                } else {
+                    // if the posting amount exists, set an AmountPool from the amount as the
+                    // key's value. otherwise, use an AmountPool from a zero Amount.
+                    if let Some(a) = posting_amount {
+                        totals_map.insert(posting_account.to_owned(), AmountPool::from(a.clone()));
+                    } else {
+                        totals_map
+                            .insert(posting_account.to_owned(), AmountPool::from(Amount::zero()));
                     }
                 }
             }
@@ -312,9 +304,10 @@ impl Ledger {
     ) -> Result<(), SilverfoxError> {
         let account_set = self.accounts.keys().cloned().collect();
 
-        let imp = match rules_file {
-            Some(r) => CsvImporter::from_file_with_rules(csv_file, r, account_set),
-            None => CsvImporter::from_file(csv_file, account_set),
+        let imp = if let Some(r) = rules_file {
+            CsvImporter::from_file_with_rules(csv_file, r, account_set)
+        } else {
+            CsvImporter::from_file(csv_file, account_set)
         }?;
 
         for result in imp {
