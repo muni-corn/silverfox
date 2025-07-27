@@ -117,8 +117,6 @@ impl Ord for Amount {
 
 impl PartialOrd for Amount {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        assert_eq!(self.symbol, other.symbol,"tried to operate on two amounts with differing symbols: {self} and {other}. developers should check for non-matching Amount symbols before performing operations on them.");
-
         Some(self.cmp(other))
     }
 }
